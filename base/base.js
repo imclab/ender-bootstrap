@@ -1,4 +1,5 @@
-  // make a fake `ender` that can do some things slightly different
+/*global provide:true,ender:true*/
+// make a fake `ender` that can do some things slightly different
 !(function ($) {
   var faker = function (selector) {
         return selector === null || selector === '#' ? $([]) : $.apply(this, arguments)
@@ -10,6 +11,7 @@
     , _$height = $.fn.height
     , _$width = $.fn.width
     , _$data = $.fn.data
+    , p
 
   for (p in $) {
     if (Object.prototype.hasOwnProperty.call($, p))
@@ -21,28 +23,19 @@
   faker.camelCase = function (s) {
     return s.replace(/-([a-z]|[0-9])/ig, function(s, c) { return (c + '').toUpperCase() })
   }
-  // $.extend(dst, src)
-  // TODO: this is overkill, replace with a simple version
+  // $.extend(dst, src1, src2...)
+  // simple shallow copy
   faker.extend = function () {
-    // based on jQuery deep merge
-    var options, name, src, copy, clone
+    var options, name, src, copy
       , target = arguments[0], i = 1, length = arguments.length
 
     for (; i < length; i++) {
       if ((options = arguments[i]) !== null) {
-        // Extend the base object
         for (name in options) {
           src = target[name]
           copy = options[name]
-          if (target === copy) {
-            continue
-          }
-          if (copy && copy instanceof Object && typeof copy !== 'function' && !(copy instanceof Array)) {
-            clone = src && is.obj(src) ? src : {}
-            target[name] = faker.extend(clone, copy)
-          } else if (copy !== undefined) {
+          if (target !== copy)
             target[name] = copy
-          }
         }
       }
     }
@@ -50,7 +43,7 @@
   }
   // $.map
   faker.map = function (a, fn, scope) {
-    var r = [], tr, i
+    var r = [], tr, i, l
     for (i = 0, l = a.length; i < l; i++) {
       i in a && (tr = fn.call(scope, a[i], i, a)) != null && r.push(tr)
     }
@@ -70,13 +63,19 @@
     return ret;
   }
 
+  // this is just nasty... Bootstrap uses $.Event(foo) so it can track state, we can't do that
+  // with Bean but we need to pass Bean a string for trigger()
+  faker.Event = function (s) {
+    return s
+  }
+
   // fix $().map to handle argument-less functions
   // also the explicit rejection of null values
   $.fn.map = function (fn) {
     if (!fn.length) { // no args
-      return _$map.call(this, function(e) { return fn.call(e) }, function (e) { return e != null })
+      return $(_$map.call(this, function(e) { return fn.call(e) }, function (e) { return e != null }))
     }
-    return _$map.apply(this, arguments)
+    return $(_$map.apply(this, arguments))
   }
   // fix $().on to handle jQuery style arguments
   $.fn.on = function () {
@@ -102,6 +101,9 @@
           return computed.getPropertyValue(type)
       }
 
+      if (this[0] === window) {
+        return window.document.documentElement['client' + (name == 'height' ? 'Height' : 'Width')]
+      }
       return _$fn.apply(this)
     }
   }
@@ -122,6 +124,13 @@
       }
     }
     return d
+  }
+  // implement sort which is awkward because Array.prototype.sort won't sort an Ender object
+  $.fn.sort = function (fn) {
+    var ar = []
+    for (var i = 0; i < this.length; i++) ar[i] = this[i]
+    ar.sort(fn)
+    return $(ar)
   }
 
   // lifted from jQuery, modified slightly
