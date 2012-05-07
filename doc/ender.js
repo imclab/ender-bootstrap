@@ -737,7 +737,6 @@
           for (var i = this.length, j = 0, l = this.length + plus.length; i < l; i++, j++) {
             this[i] = plus[j]
           }
-          this.length += plus.length
           return this
         }
       , is: function(s, r) {
@@ -1997,7 +1996,7 @@
       , dim: function () {
           if (!this.length) return { height: 0, width: 0 }
           var el = this[0]
-            , orig = el.offsetWidth === 0 && el.offsetHeight === 0 ?
+            , orig = !el.offsetWidth && !el.offsetHeight ?
                // el isn't visible, can't be measured properly, so fix that
                function (t, s) {
                   s = {

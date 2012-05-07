@@ -95,15 +95,16 @@
       if (arguments.length || !this.length)
         return _$fn.apply(this, arguments) // normal call
 
+      if (this[0] === window) {
+        return window.document.documentElement['client' + (name == 'height' ? 'Height' : 'Width')]
+      }
+
       if (hasComputedStyle) {
         var computed = document.defaultView.getComputedStyle(this[0], '')
         if (computed)
           return computed.getPropertyValue(type)
       }
 
-      if (this[0] === window) {
-        return window.document.documentElement['client' + (name == 'height' ? 'Height' : 'Width')]
-      }
       return _$fn.apply(this)
     }
   }
@@ -131,6 +132,17 @@
     for (var i = 0; i < this.length; i++) ar[i] = this[i]
     ar.sort(fn)
     return $(ar)
+  }
+  // for carousel.to()
+  if (!$.fn.index) {
+    $.fn.index = function (el) {
+      if (el && (!!el.nodeType || !!(el = el[0]).nodeType)) {
+        for (var i = 0, l = this.length; i < l; i++) {
+          if (this[i] === el) return i
+        }
+      }
+      return -1
+    }
   }
 
   // lifted from jQuery, modified slightly

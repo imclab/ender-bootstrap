@@ -20,10 +20,10 @@ minified & gzipped, of a jQuery-based Bootstrap install).
 
 ## Current status
 
-All good except for some bugs from Bootstrap 2.0.1 that we've caried
-over. Radio and checkbox buttons don't work in Bootstrap 2.0.1 but
-they've been patched in the latest release of ender-bootstrap.
-Carousel's still have the same problem that exists in Bootstrap 2.0.1.
+All good @2.0.3! A couple of minor features are not available, most notably
+he ability to `preventDefault()` on custom emitted events as Bean does
+not support the full `$.Event` jQuery API. However this is not a commonly
+used or well documented feature of Bootstrap.
 
 ## Using
 
@@ -59,7 +59,8 @@ Or, you can install the lot with the *virtual* package:
 Even though the dependencies are set up in the packages, you need to
 specify the required dependencies on the command line when running
 *ender*, otherwise they will end up installed in your *ender.js* file
-*after* the Ender Bootstrap packages. So install like this:
+*after* the Ender Bootstrap packages unless you are using the current
+*1.0-wip* development branch of the Ender CLI. So install like this:
 
 ```
  $ ender build qwery bonzo bean domready bowser ender-bootstrap-base ender-bootstrap-transition ender-bootstrap-alert
@@ -68,6 +69,12 @@ specify the required dependencies on the command line when running
 
  $ ender build qwery bonzo bean domready bowser ender-bootstrap
 ```
+
+Also note that Qwery is an optional dependency so you can switch it
+out for another selector engine supported by Ender, such as
+[Sel](https://github.com/amccollum/sel),
+[Sizzle](https://github.com/jquery/sizzle) or
+[NWMatcher](https://github.com/dperini/nwmatcher).
 
 #### The *easy* way
 
@@ -147,8 +154,12 @@ functions that do leak.
  * `$().position()` from jQuery (http://api.jquery.com/position/) is
    installed, with a few minor modifications. `$().offsetParent()` comes
    along for the ride too (http://api.jquery.com/offsetParent/).
+ * `$().index(el)` is implemented if it doesn't exist, it'll simply return
+   the index of the given element in the current list, or -1 if it's not
+   there. No-arg version is not supported.
+ * `$().sort()` is implemented to sort the current list of elements by
+   the given comparator function.
 
 See
 [base.js](https://github.com/rvagg/ender-bootstrap/blob/master/base/base.js)
 for all the gory details.
-
