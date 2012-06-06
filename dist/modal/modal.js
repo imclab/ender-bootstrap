@@ -213,4 +213,4 @@
       $target.modal(option)
     })
   })
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))

@@ -165,4 +165,4 @@
       e.preventDefault()
     })
   })
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))

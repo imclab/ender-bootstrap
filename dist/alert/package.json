@@ -13,9 +13,9 @@
     "Rod Vagg <@rvagg>"
   ],
   "dependencies": {
-    "ender-bootstrap-base": "2.0.3",
-    "ender-bootstrap-transition": "2.0.3"
+    "ender-bootstrap-base": "2.0.3-1",
+    "ender-bootstrap-transition": "2.0.3-1"
   },
   "main": "alert.js",
-  "version": "2.0.3"
+  "version": "2.0.3-1"
 }

@@ -96,4 +96,4 @@
       .on('click.dropdown', '.dropdown form', function (e) { e.stopPropagation() })
       .on('click.dropdown.data-api', toggle, Dropdown.prototype.toggle)
   })
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))

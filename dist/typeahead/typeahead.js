@@ -281,4 +281,4 @@
       $this.typeahead($this.data())
     })
   })
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))

@@ -185,8 +185,8 @@
     }))
   }
 
-  if (typeof module !== 'undefined') module.exports = faker
-  else if (typeof provide !== 'undefined') provide('ender-bootstrap-base', faker)
+  // if (typeof module !== 'undefined') module.exports = faker
+  if (typeof provide !== 'undefined') provide('ender-bootstrap-base-faker', faker)
   // else, where are we??
 
 

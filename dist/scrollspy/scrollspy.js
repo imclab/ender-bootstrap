@@ -147,4 +147,4 @@
       $spy.scrollspy($spy.data())
     })
   })
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))

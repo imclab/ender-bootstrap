@@ -271,4 +271,4 @@
   , title: ''
   , delay: 0
   }
-}(require('ender-bootstrap-base'))
+}(require('ender-bootstrap-base-faker'))
