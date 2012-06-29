@@ -87,7 +87,11 @@
   }
   // don't handle $().trigger({}) (object parameters)
   $.fn.trigger = function () {
-    return typeof arguments[0] == 'string' ? _$trigger.apply(this, arguments) : this
+    if (typeof arguments[0] == 'string')
+      return _$trigger.apply(this, arguments)
+    if (typeof arguments[0] == 'object' && typeof arguments[0].type == 'string')
+      return _$trigger.call(this, arguments[0].type)
+    return this
   }
   // fix up height() and width() call to use computedStyle where available
   var hwfn = function(_$fn, type) {
