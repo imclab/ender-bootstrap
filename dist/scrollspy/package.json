@@ -13,9 +13,9 @@
     "Rod Vagg <@rvagg>"
   ],
   "dependencies": {
-    "ender-bootstrap-base": "2.0.3-1",
-    "ender-bootstrap-transition": "2.0.3-1"
+    "ender-bootstrap-base": "2.0.3-2",
+    "ender-bootstrap-transition": "2.0.3-2"
   },
   "main": "scrollspy.js",
-  "version": "2.0.3-1"
+  "version": "2.0.3-2"
 }
