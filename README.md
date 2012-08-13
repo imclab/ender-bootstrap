@@ -20,7 +20,7 @@ minified & gzipped, of a jQuery-based Bootstrap install).
 
 ## Current status
 
-All good @2.0.3! A couple of minor features are not available, most notably
+All good @2.0.4! A couple of minor features are not available, most notably
 he ability to `preventDefault()` on custom emitted events as Bean does
 not support the full `$.Event` jQuery API. However this is not a commonly
 used or well documented feature of Bootstrap.
@@ -131,10 +131,9 @@ functions that do leak.
    cmpletely, this is not supported by Bean and not required by
    Bootstrap. (2) with 3 arguments where the second is a string, (i.e. a
    delegated listener with a selector argument in second place) remap
-   the call to `bean.on()` to put the selector first--Bean will
-   eventually [support this syntax in the future
-   anyway](https://github.com/fat/bean/issues/55) so you probably
-   shouldn't rely on the selector-first style in Bean's `on()`.
+   the call to `bean.on()` to put the selector first. This is only required
+   for Bean 0.4.x, as of 1.0, Bean supports the same argument order as
+   jQuery.
  * `$().trigger()` (Bean) has been modified to prevent it accepting (and
    throwing an error) on non-string arguments. This means that there are
    some events that Bootstrap fires that won't see the light of day. If

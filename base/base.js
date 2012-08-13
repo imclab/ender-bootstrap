@@ -5,6 +5,7 @@
         return selector === null || selector === '#' ? $([]) : $.apply(this, arguments)
       }
     , hasComputedStyle = document.defaultView && document.defaultView.getComputedStyle
+    , hasNewBean = !!require('bean').on
     , _$map = $.fn.map
     , _$on = $.fn.on
     , _$trigger = $.fn.trigger
@@ -79,9 +80,11 @@
   }
   // fix $().on to handle jQuery style arguments
   $.fn.on = function () {
+    // 'data' argument, can't use it, perhaps pass it as last arg?
     if (arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] != 'string')
       return $.fn.bind.call(this, arguments[0], arguments[2])
-    else if (arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] == 'string')
+    // this argument switch only needs to happen for old Bean
+    else if (!hasNewBean && arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] == 'string')
       return $.fn.bind.call(this, arguments[1], arguments[0], arguments[2])
     return _$on.apply(this, arguments)
   }
