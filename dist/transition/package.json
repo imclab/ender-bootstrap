@@ -13,8 +13,8 @@
     "Rod Vagg <@rvagg>"
   ],
   "dependencies": {
-    "ender-bootstrap-base": "2.0.4"
+    "ender-bootstrap-base": "2.1.1"
   },
   "main": "transition.js",
-  "version": "2.0.4"
+  "version": "2.1.1"
 }

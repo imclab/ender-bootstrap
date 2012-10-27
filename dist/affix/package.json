@@ -1,6 +1,6 @@
 {
-  "name": "ender-bootstrap-collapse",
-  "description": "Ender port of Twitter's Bootstrap JS (Collapse)",
+  "name": "ender-bootstrap-affix",
+  "description": "Ender port of Twitter's Bootstrap JS (Affix)",
   "url": "https://github.com/rvagg/ender-bootstrap",
   "keywords": [
     "twitter",
@@ -16,6 +16,6 @@
     "ender-bootstrap-base": "2.1.1",
     "ender-bootstrap-transition": "2.1.1"
   },
-  "main": "collapse.js",
+  "main": "affix.js",
   "version": "2.1.1"
 }

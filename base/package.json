@@ -13,11 +13,11 @@
     "Rod Vagg <@rvagg>"
   ],
   "dependencies": {
-    "bean": ">= 0.4.9",
-    "bonzo": ">= 1.0.1",
-    "bowser": "*",
-    "domready": "*"
+    "bean": "~1.0.1",
+    "bonzo": "~1.2.5",
+    "bowser": "~0.2.0",
+    "domready": "~0.2.11"
   },
   "main": "base.js",
-  "version": "2.0.4"
+  "version": "2.1.1"
 }

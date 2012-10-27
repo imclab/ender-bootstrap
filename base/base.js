@@ -4,13 +4,10 @@
   var faker = function (selector) {
         return selector === null || selector === '#' ? $([]) : $.apply(this, arguments)
       }
-    , hasComputedStyle = document.defaultView && document.defaultView.getComputedStyle
     , hasNewBean = !!require('bean').on
     , _$map = $.fn.map
     , _$on = $.fn.on
     , _$trigger = $.fn.trigger
-    , _$height = $.fn.height
-    , _$width = $.fn.width
     , _$data = $.fn.data
     , p
 
@@ -22,7 +19,7 @@
 
   // $.camelCase
   faker.camelCase = function (s) {
-    return s.replace(/-([a-z]|[0-9])/ig, function(s, c) { return (c + '').toUpperCase() })
+    return s.replace(/-([a-z]|[0-9])/ig, function (s, c) { return (c + '').toUpperCase() })
   }
   // $.extend(dst, src1, src2...)
   // simple shallow copy
@@ -55,7 +52,7 @@
     return function () { return fn.apply(ctx, arguments) }
   }
   // simplified version of jQuery's $.grep
-  faker.grep = function(elems, callback) {
+  faker.grep = function (elems, callback) {
     var i = 0, l = elems.length, ret = []
     for (; i < l; i++) {
       if (!!callback(elems[i], i))
@@ -63,6 +60,16 @@
     }
     return ret;
   }
+  // no index arg needed just yet
+  faker.inArray = Array.prototype.indexOf
+    ? function (el, arr) {
+        return Array.prototype.indexOf.call(arr, el)
+      }
+    : function (el, arr) {
+        for (var i = 0; i < arr.length; i++)
+          if (arr[i] === el) return i
+        return -1
+      }
 
   // this is just nasty... Bootstrap uses $.Event(foo) so it can track state, we can't do that
   // with Bean but we need to pass Bean a string for trigger()
@@ -74,7 +81,7 @@
   // also the explicit rejection of null values
   $.fn.map = function (fn) {
     if (!fn.length) { // no args
-      return $(_$map.call(this, function(e) { return fn.call(e) }, function (e) { return e != null }))
+      return $(_$map.call(this, function (e) { return fn.call(e) }, function (e) { return e != null }))
     }
     return $(_$map.apply(this, arguments))
   }
@@ -95,31 +102,6 @@
     if (typeof arguments[0] == 'object' && typeof arguments[0].type == 'string')
       return _$trigger.call(this, arguments[0].type)
     return this
-  }
-  // fix up height() and width() call to use computedStyle where available
-  var hwfn = function(_$fn, type) {
-    return function () {
-      if (arguments.length || !this.length)
-        return _$fn.apply(this, arguments) // normal call
-
-      if (this[0] === window) {
-        return window.document.documentElement['client' + (name == 'height' ? 'Height' : 'Width')]
-      }
-
-      if (hasComputedStyle) {
-        var computed = document.defaultView.getComputedStyle(this[0], '')
-        if (computed)
-          return computed.getPropertyValue(type)
-      }
-
-      return _$fn.apply(this)
-    }
-  }
-  $.fn.height = hwfn(_$height, 'height')
-  $.fn.width = hwfn(_$width, 'width')
-  // a prev() alias for previous()
-  $.fn.prev = function () {
-    return $.fn.previous.apply(this, arguments)
   }
   // fix $().data() to handle a JSON array for typeahead's "source"
   $.fn.data = function () {
@@ -142,8 +124,9 @@
   }
   // for carousel.to()
   if (!$.fn.index) {
+    //TODO: support collections of elements for dropdown.js, move implementation to Traversty
     $.fn.index = function (el) {
-      if (el && (!!el.nodeType || !!(el = el[0]).nodeType)) {
+      if (el && (!!el.nodeType || (!!(el = el[0]) && !!el.nodeType))) {
         for (var i = 0, l = this.length; i < l; i++) {
           if (this[i] === el) return i
         }
@@ -183,7 +166,7 @@
     }
   }
   $.fn.offsetParent = function () {
-    return $(this.map(function() {
+    return $(this.map(function () {
       var offsetParent = this.offsetParent || document.body
       while (offsetParent && (!rroot.test(offsetParent.nodeName) && $(offsetParent).css("position") === "static")) {
         offsetParent = offsetParent.offsetParent
