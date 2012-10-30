@@ -267,7 +267,7 @@
 
   , mouseenter: function (e) {
       this.$menu.find('.active').removeClass('active')
-      $(e.currentTarget).addClass('active')
+      $((e.currentTarget || e.target)).addClass('active')
     }
 
   }

@@ -63,18 +63,20 @@ specify the required dependencies on the command line when running
 *1.0-wip* development branch of the Ender CLI. So install like this:
 
 ```
- $ ender build qwery bonzo bean domready bowser ender-bootstrap-base ender-bootstrap-transition ender-bootstrap-alert
+ $ ender build qwery qwery-pseudos bonzo bean domready bowser ender-bootstrap-base ender-bootstrap-transition ender-bootstrap-alert
 
  # or, for the whole hog
 
- $ ender build qwery bonzo bean domready bowser ender-bootstrap
+ $ ender build qwery qwery-pseudos bonzo bean domready bowser ender-bootstrap
 ```
 
 Also note that Qwery is an optional dependency so you can switch it
 out for another selector engine supported by Ender, such as
 [Sel](https://github.com/amccollum/sel),
 [Sizzle](https://github.com/jquery/sizzle) or
-[NWMatcher](https://github.com/dperini/nwmatcher).
+[NWMatcher](https://github.com/dperini/nwmatcher). If you do use Qwery
+then you also need to install the *qwery-pseudos* package (although
+currently it's only essential to make tabs with dropdowns work).
 
 #### The *easy* way
 

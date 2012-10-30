@@ -72,7 +72,7 @@
     }
 
   , enter: function (e) {
-      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+      var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
 
       if (!self.options.delay || !self.options.delay.show) return self.show()
 
@@ -84,7 +84,7 @@
     }
 
   , leave: function (e) {
-      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+      var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
 
       if (this.timeout) clearTimeout(this.timeout)
       if (!self.options.delay || !self.options.delay.hide) return self.hide()
@@ -236,7 +236,7 @@
     }
 
   , toggle: function (e) {
-      var self = $(e.currentTarget)[this.type](this._options).data(this.type)
+      var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
       self[self.tip().hasClass('in') ? 'hide' : 'show']()
     }
 
