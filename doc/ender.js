@@ -2,7 +2,7 @@
   * =============================================================
   * Ender: open module JavaScript framework (https://ender.no.de)
   * Build: ender build domready bowser qwery bean /home/rvagg/git/bonzo /home/rvagg/git/traversty/
-  * Packages: ender-js@0.4.4 domready@0.2.11 bowser@0.2.0 qwery@3.3.11 bean@1.0.1 bonzo@1.2.4 traversty@0.0.7
+  * Packages: ender-js@0.4.4 domready@0.2.11 bowser@0.2.0 qwery@3.3.11 bean@1.0.1 bonzo@1.2.7-1 traversty@1.0.0
   * =============================================================
   */
 
@@ -2365,7 +2365,11 @@
          * @return {Bonzo|number}
          */
       , offset: function (opt_x, opt_y) {
-          if (typeof opt_x == 'number' || typeof opt_y == 'number') {
+          if (opt_x && typeof opt_x == 'object' && (typeof opt_x.top == 'number' || typeof opt_x.left == 'number')) {
+            return this.each(function (el) {
+              xy(el, opt_x.left, opt_x.top)
+            })
+          } else if (typeof opt_x == 'number' || typeof opt_y == 'number') {
             return this.each(function (el) {
               xy(el, opt_x, opt_y)
             })
@@ -2511,10 +2515,7 @@
          */
       , remove: function () {
           this.deepEach(clearData)
-
-          return this.each(function (el) {
-            el[parentNode] && el[parentNode].removeChild(el)
-          })
+          return this.detach()
         }
 
 
@@ -2537,7 +2538,7 @@
          */
       , detach: function () {
           return this.each(function (el) {
-            el[parentNode].removeChild(el)
+            el[parentNode] && el[parentNode].removeChild(el)
           })
         }
 
@@ -3138,15 +3139,6 @@
                 return traversty(filter(this, inv(filterFn(slfn))))
               }
 
-              // same as filter() but return a boolean so quick-return after first successful find
-            , is: function (slfn) {
-                var i = 0, l = this.length
-                  , fn = filterFn(slfn)
-                for (; i < l; i++)
-                  if (fn(this[i], i)) return true
-                return false
-              }
-
               // similar to filter() but cares about descendent elements
             , has: function (slel) {
                 return traversty(filter(
@@ -3157,6 +3149,15 @@
                         ? function (el) { return selectorFind(slel, el).length } //TODO: performance
                         : function () { return false }
                 ))
+              }
+
+              // same as filter() but return a boolean so quick-return after first successful find
+            , is: function (slfn) {
+                var i = 0, l = this.length
+                  , fn = filterFn(slfn)
+                for (; i < l; i++)
+                  if (fn(this[i], i)) return true
+                return false
               }
           }
           T.prototype.prev = T.prototype.previous
