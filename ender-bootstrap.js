@@ -1,8 +1,8 @@
 /*!
   * =============================================================
   * Ender: open module JavaScript framework (https://ender.no.de)
-  * Build: ender build qwery bonzo bean domready bowser ender-bootstrap --output ender-bootstrap
-  * Packages: ender-js@0.4.3-dev qwery@3.3.6 bonzo@1.0.6 bean@0.4.11-1 domready@0.2.11 bowser@0.2.0 ender-bootstrap-base@2.0.3 ender-bootstrap-transition@2.0.3 ender-bootstrap-typeahead@2.0.3 ender-bootstrap-tooltip@2.0.3 ender-bootstrap-tab@2.0.3 ender-bootstrap-scrollspy@2.0.3 ender-bootstrap-popover@2.0.3 ender-bootstrap-modal@2.0.3 ender-bootstrap-dropdown@2.0.3 ender-bootstrap-collapse@2.0.3 ender-bootstrap-carousel@2.0.3 ender-bootstrap-alert@2.0.3 ender-bootstrap-button@2.0.3 ender-bootstrap@2.0.3
+  * Build: ender build qwery bonzo bean domready bowser ender-bootstrap qwery-pseudos --output ender-bootstrap
+  * Packages: ender-js@0.4.4 qwery@3.3.11 bonzo@1.2.7-1 bean@1.0.1 domready@0.2.11 bowser@0.2.0 traversty@1.0.1 ender-bootstrap-base@2.2.1 ender-bootstrap-transition@2.2.1 ender-bootstrap-alert@2.2.1 ender-bootstrap-button@2.2.1 ender-bootstrap-carousel@2.2.1 ender-bootstrap-collapse@2.2.1 ender-bootstrap-dropdown@2.2.1 ender-bootstrap-modal@2.2.1 ender-bootstrap-tooltip@2.2.1 ender-bootstrap-popover@2.2.1 ender-bootstrap-scrollspy@2.2.1 ender-bootstrap-tab@2.2.1 ender-bootstrap-typeahead@2.2.1 ender-bootstrap@2.2.1 qwery-pseudos@1.0.0
   * =============================================================
   */
 
@@ -25,6 +25,7 @@
 
   var modules = {}
     , old = context['$']
+    , oldEnder = context['ender']
     , oldRequire = context['require']
     , oldProvide = context['provide']
 
@@ -107,38 +108,38 @@
   }
 
 
-  // use callback to receive Ender's require & provide
+  // use callback to receive Ender's require & provide and remove them from global
   ender.noConflict = function (callback) {
     context['$'] = old
     if (callback) {
       context['provide'] = oldProvide
       context['require'] = oldRequire
-      callback(require, provide, this)
+      context['ender'] = oldEnder
+      if (typeof callback == 'function') callback(require, provide, this)
     }
     return this
   }
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ender
   // use subscript notation as extern for Closure compilation
-  context['ender'] = context['$'] = context['ender'] || ender
+  context['ender'] = context['$'] = ender
 
 }(this));
-
 
 (function () {
 
   var module = { exports: {} }, exports = module.exports;
 
   /*!
-    * Qwery - A Blazing Fast query selector engine
+    * @preserve Qwery - A Blazing Fast query selector engine
     * https://github.com/ded/qwery
-    * copyright Dustin Diaz & Jacob Thornton 2011
+    * copyright Dustin Diaz & Jacob Thornton 2012
     * MIT License
     */
 
   (function (name, definition, context) {
     if (typeof module != 'undefined' && module.exports) module.exports = definition()
-    else if (typeof context['define'] != 'undefined' && context['define'] == 'function' && context['define']['amd']) define(name, definition)
+    else if (typeof context['define'] == 'function' && context['define']['amd']) define(name, definition)
     else context[name] = definition()
   })('qwery', function () {
     var doc = document
@@ -151,7 +152,6 @@
       , nodeType = 'nodeType'
       , select // main select() method, assign later
 
-      // OOOOOOOOOOOOH HERE COME THE ESSSXXSSPRESSSIONSSSSSSSS!!!!!
       , id = /#([\w\-]+)/
       , clas = /\.[\w\-]+/g
       , idOnly = /^#([\w\-]+)$/
@@ -501,7 +501,16 @@
   provide("qwery", module.exports);
 
   (function ($) {
-    var q = require('qwery')
+    var q = function () {
+      var r
+      try {
+        r = require('qwery')
+      } catch (ex) {
+        r = require('qwery-mobile')
+      } finally {
+        return r
+      }
+    }()
 
     $.pseudos = q.pseudos
 
@@ -510,7 +519,11 @@
       // rather than load-time since technically it's not a dependency and
       // can be loaded in any order
       // hence the lazy function re-definition
-      return ($._select = (function (b) {
+      return ($._select = (function () {
+        var b
+        if (typeof $.create == 'function') return function (s, r) {
+          return /^\s*</.test(s) ? $.create(s, r) : q(s, r)
+        }
         try {
           b = require('bonzo')
           return function (s, r) {
@@ -535,6 +548,7 @@
           for (var i = this.length, j = 0, l = this.length + plus.length; i < l; i++, j++) {
             this[i] = plus[j]
           }
+          this.length += plus.length
           return this
         }
       , is: function(s, r) {
@@ -562,16 +576,15 @@
     */
   (function (name, definition, context) {
     if (typeof module != 'undefined' && module.exports) module.exports = definition()
-    else if (typeof context['define'] != 'undefined' && context['define'] == 'function' && context['define']['amd']) define(name, definition)
+    else if (typeof context['define'] == 'function' && context['define']['amd']) define(name, definition)
     else context[name] = definition()
   })('bonzo', function() {
-    var context = this
-      , win = window
+    var win = window
       , doc = win.document
       , html = doc.documentElement
       , parentNode = 'parentNode'
-      , query = null
-      , specialAttributes = /^(checked|value|selected)$/i
+      , query = null // used for setting a selector engine host
+      , specialAttributes = /^(checked|value|selected|disabled)$/i
       , specialTags = /^(select|fieldset|table|tbody|tfoot|td|tr|colgroup)$/i // tags that we have trouble inserting *into*
       , table = ['<table>', '</table>', 1]
       , td = ['<table><tbody><tr>', '</tr></tbody></table>', 3]
@@ -587,7 +600,7 @@
           , option: option, optgroup: option
           , script: noscope, style: noscope, link: noscope, param: noscope, base: noscope
         }
-      , stateAttributes = /^(checked|selected)$/
+      , stateAttributes = /^(checked|selected|disabled)$/
       , ie = /msie/i.test(navigator.userAgent)
       , hasClass, addClass, removeClass
       , uidMap = {}
@@ -607,12 +620,15 @@
           , computedStyle: doc.defaultView && doc.defaultView.getComputedStyle
           , cssFloat: e[byTag]('table')[0].style.styleFloat ? 'styleFloat' : 'cssFloat'
           , transform: function () {
-              var props = ['webkitTransform', 'MozTransform', 'OTransform', 'msTransform', 'Transform'], i
+              var props = ['transform', 'webkitTransform', 'MozTransform', 'OTransform', 'msTransform'], i
               for (i = 0; i < props.length; i++) {
                 if (props[i] in e.style) return props[i]
               }
             }()
           , classList: 'classList' in e
+          , opasity: function () {
+              return typeof doc.createElement('a').style.opacity !== 'undefined'
+            }()
           }
         }()
       , trimReplace = /(^\s*|\s*$)/g
@@ -627,47 +643,93 @@
             return s.replace(trimReplace, '')
           }
 
+
+    /**
+     * @param {string} c a class name to test
+     * @return {boolean}
+     */
     function classReg(c) {
       return new RegExp("(^|\\s+)" + c + "(\\s+|$)")
     }
 
-    function each(ar, fn, scope) {
-      for (var i = 0, l = ar.length; i < l; i++) fn.call(scope || ar[i], ar[i], i, ar)
+
+    /**
+     * @param {Bonzo|Array} ar
+     * @param {function(Object, number, (Bonzo|Array))} fn
+     * @param {Object=} opt_scope
+     * @param {boolean=} opt_rev
+     * @return {Bonzo|Array}
+     */
+    function each(ar, fn, opt_scope, opt_rev) {
+      var ind, i = 0, l = ar.length
+      for (; i < l; i++) {
+        ind = opt_rev ? ar.length - i - 1 : i
+        fn.call(opt_scope || ar[ind], ar[ind], ind, ar)
+      }
       return ar
     }
 
-    function deepEach(ar, fn, scope) {
+
+    /**
+     * @param {Bonzo|Array} ar
+     * @param {function(Object, number, (Bonzo|Array))} fn
+     * @param {Object=} opt_scope
+     * @return {Bonzo|Array}
+     */
+    function deepEach(ar, fn, opt_scope) {
       for (var i = 0, l = ar.length; i < l; i++) {
         if (isNode(ar[i])) {
-          deepEach(ar[i].childNodes, fn, scope)
-          fn.call(scope || ar[i], ar[i], i, ar)
+          deepEach(ar[i].childNodes, fn, opt_scope)
+          fn.call(opt_scope || ar[i], ar[i], i, ar)
         }
       }
       return ar
     }
 
+
+    /**
+     * @param {string} s
+     * @return {string}
+     */
     function camelize(s) {
       return s.replace(/-(.)/g, function (m, m1) {
         return m1.toUpperCase()
       })
     }
 
+
+    /**
+     * @param {string} s
+     * @return {string}
+     */
     function decamelize(s) {
       return s ? s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase() : s
     }
 
+
+    /**
+     * @param {Element} el
+     * @return {*}
+     */
     function data(el) {
       el[getAttribute]('data-node-uid') || el[setAttribute]('data-node-uid', ++uuids)
       var uid = el[getAttribute]('data-node-uid')
       return uidMap[uid] || (uidMap[uid] = {})
     }
 
+
+    /**
+     * removes the data associated with an element
+     * @param {Element} el
+     */
     function clearData(el) {
       var uid = el[getAttribute]('data-node-uid')
       if (uid) delete uidMap[uid]
     }
 
-    function dataValue(d, f) {
+
+    function dataValue(d) {
+      var f
       try {
         return (d === null || d === undefined) ? undefined :
           d === 'true' ? true :
@@ -679,17 +741,33 @@
     }
 
     function isNode(node) {
-      return node && node.nodeName && node.nodeType == 1
+      return node && node.nodeName && (node.nodeType == 1 || node.nodeType == 11)
     }
 
-    function some(ar, fn, scope, i, j) {
-      for (i = 0, j = ar.length; i < j; ++i) if (fn.call(scope, ar[i], i, ar)) return true
+
+    /**
+     * @param {Bonzo|Array} ar
+     * @param {function(Object, number, (Bonzo|Array))} fn
+     * @param {Object=} opt_scope
+     * @return {boolean} whether `some`thing was found
+     */
+    function some(ar, fn, opt_scope) {
+      for (var i = 0, j = ar.length; i < j; ++i) if (fn.call(opt_scope || null, ar[i], i, ar)) return true
       return false
     }
 
+
+    /**
+     * this could be a giant enum of CSS properties
+     * but in favor of file size sans-closure deadcode optimizations
+     * we're just asking for any ol string
+     * then it gets transformed into the appropriate style property for JS access
+     * @param {string} p
+     * @return {string}
+     */
     function styleProperty(p) {
         (p == 'transform' && (p = features.transform)) ||
-          (/^transform-?[Oo]rigin$/.test(p) && (p = features.transform + "Origin")) ||
+          (/^transform-?[Oo]rigin$/.test(p) && (p = features.transform + 'Origin')) ||
           (p == 'float' && (p = features.cssFloat))
         return p ? camelize(p) : null
     }
@@ -704,14 +782,19 @@
 
       (ie && html.currentStyle) ?
 
+      /**
+       * @param {Element} el
+       * @param {string} property
+       * @return {string|number}
+       */
       function (el, property) {
-        if (property == 'opacity') {
+        if (property == 'opacity' && !features.opasity) {
           var val = 100
           try {
-            val = el.filters['DXImageTransform.Microsoft.Alpha'].opacity
+            val = el['filters']['DXImageTransform.Microsoft.Alpha'].opacity
           } catch (e1) {
             try {
-              val = el.filters('alpha').opacity
+              val = el['filters']('alpha').opacity
             } catch (e2) {}
           }
           return val / 100
@@ -725,47 +808,31 @@
       }
 
     // this insert method is intense
-    function insert(target, host, fn) {
+    function insert(target, host, fn, rev) {
       var i = 0, self = host || this, r = []
         // target nodes could be a css selector if it's a string and a selector engine is present
         // otherwise, just use target
         , nodes = query && typeof target == 'string' && target.charAt(0) != '<' ? query(target) : target
       // normalize each node in case it's still a string and we need to create nodes on the fly
-      each(normalize(nodes), function (t) {
+      each(normalize(nodes), function (t, j) {
         each(self, function (el) {
-          var n = !el[parentNode] || (el[parentNode] && !el[parentNode][parentNode]) ?
-            function () {
-              var c = el.cloneNode(true)
-                , cloneElems
-                , elElems
-
-              // check for existence of an event cloner
-              // preferably https://github.com/fat/bean
-              // otherwise Bonzo won't do this for you
-              if (self.$ && self.cloneEvents) {
-                self.$(c).cloneEvents(el)
-
-                // clone events from every child node
-                cloneElems = self.$(c).find('*')
-                elElems = self.$(el).find('*')
-
-                for (var i = 0; i < elElems.length; i++)
-                  self.$(cloneElems[i]).cloneEvents(elElems[i])
-              }
-              return c
-            }() : el
-          fn(t, n)
-          r[i] = n
-          i++
-        })
-      }, this)
-      each(r, function (e, i) {
-        self[i] = e
-      })
+          fn(t, r[i++] = j > 0 ? cloneNode(self, el) : el)
+        }, null, rev)
+      }, this, rev)
       self.length = i
+      each(r, function (e) {
+        self[--i] = e
+      }, null, !rev)
       return self
     }
 
+
+    /**
+     * sets an element to an explicit x/y position on the page
+     * @param {Element} el
+     * @param {?number} x
+     * @param {?number} y
+     */
     function xy(el, x, y) {
       var $el = bonzo(el)
         , style = $el.css('position')
@@ -789,7 +856,6 @@
 
     // classList support for class management
     // altho to be fair, the api sucks because it won't accept multiple classes at once
-    // so we iterate down below
     if (features.classList) {
       hasClass = function (el, c) {
         return el.classList.contains(c)
@@ -814,15 +880,26 @@
     }
 
 
-    // this allows method calling for setting values
-    // example:
-    // bonzo(elements).css('color', function (el) {
-    //   return el.getAttribute('data-original-color')
-    // })
+    /**
+     * this allows method calling for setting values
+     *
+     * @example
+     * bonzo(elements).css('color', function (el) {
+     *   return el.getAttribute('data-original-color')
+     * })
+     *
+     * @param {Element} el
+     * @param {function (Element)|string}
+     * @return {string}
+     */
     function setter(el, v) {
       return typeof v == 'function' ? v(el) : v
     }
 
+    /**
+     * @constructor
+     * @param {Array.<Element>|Element|Node|string} elements
+     */
     function Bonzo(elements) {
       this.length = 0
       if (elements) {
@@ -838,130 +915,211 @@
 
     Bonzo.prototype = {
 
-        // indexr method, because jQueriers want this method. Jerks
+        /**
+         * @param {number} index
+         * @return {Element|Node}
+         */
         get: function (index) {
           return this[index] || null
         }
 
         // itetators
-      , each: function (fn, scope) {
-          return each(this, fn, scope)
+        /**
+         * @param {function(Element|Node)} fn
+         * @param {Object=} opt_scope
+         * @return {Bonzo}
+         */
+      , each: function (fn, opt_scope) {
+          return each(this, fn, opt_scope)
         }
 
-      , deepEach: function (fn, scope) {
-          return deepEach(this, fn, scope)
+        /**
+         * @param {Function} fn
+         * @param {Object=} opt_scope
+         * @return {Bonzo}
+         */
+      , deepEach: function (fn, opt_scope) {
+          return deepEach(this, fn, opt_scope)
         }
 
-      , map: function (fn, reject) {
+
+        /**
+         * @param {Function} fn
+         * @param {Function=} opt_reject
+         * @return {Array}
+         */
+      , map: function (fn, opt_reject) {
           var m = [], n, i
           for (i = 0; i < this.length; i++) {
             n = fn.call(this, this[i], i)
-            reject ? (reject(n) && m.push(n)) : m.push(n)
+            opt_reject ? (opt_reject(n) && m.push(n)) : m.push(n)
           }
           return m
         }
 
       // text and html inserters!
-      , html: function (h, text) {
-          var method = text ?
-            html.textContent === undefined ?
-              'innerText' :
-              'textContent' :
-            'innerHTML';
-          function append(el) {
-            each(normalize(h), function (node) {
-              el.appendChild(node)
-            })
-          }
-          return typeof h !== 'undefined' ?
-              this.empty().each(function (el) {
-                !text && specialTags.test(el.tagName) ?
-                  append(el) :
-                  (function () {
-                    try { (el[method] = h) }
-                    catch(e) { append(el) }
-                  }())
-              }) :
-            this[0] ? this[0][method] : ''
+
+      /**
+       * @param {string} h the HTML to insert
+       * @param {boolean=} opt_text whether to set or get text content
+       * @return {Bonzo|string}
+       */
+      , html: function (h, opt_text) {
+          var method = opt_text
+                ? html.textContent === undefined ? 'innerText' : 'textContent'
+                : 'innerHTML'
+            , that = this
+            , append = function (el, i) {
+                each(normalize(h, that, i), function (node) {
+                  el.appendChild(node)
+                })
+              }
+            , updateElement = function (el, i) {
+                try {
+                  if (opt_text || (typeof h == 'string' && !specialTags.test(el.tagName))) {
+                    return el[method] = h
+                  }
+                } catch (e) {}
+                append(el, i)
+              }
+          return typeof h != 'undefined'
+            ? this.empty().each(updateElement)
+            : this[0] ? this[0][method] : ''
         }
 
-      , text: function (text) {
-          return this.html(text, 1)
+        /**
+         * @param {string=} opt_text the text to set, otherwise this is a getter
+         * @return {Bonzo|string}
+         */
+      , text: function (opt_text) {
+          return this.html(opt_text, true)
         }
 
         // more related insertion methods
+
+        /**
+         * @param {Bonzo|string|Element|Array} node
+         * @return {Bonzo}
+         */
       , append: function (node) {
-          return this.each(function (el) {
-            each(normalize(node), function (i) {
+          var that = this
+          return this.each(function (el, i) {
+            each(normalize(node, that, i), function (i) {
               el.appendChild(i)
             })
           })
         }
 
+
+        /**
+         * @param {Bonzo|string|Element|Array} node
+         * @return {Bonzo}
+         */
       , prepend: function (node) {
-          return this.each(function (el) {
+          var that = this
+          return this.each(function (el, i) {
             var first = el.firstChild
-            each(normalize(node), function (i) {
+            each(normalize(node, that, i), function (i) {
               el.insertBefore(i, first)
             })
           })
         }
 
-      , appendTo: function (target, host) {
-          return insert.call(this, target, host, function (t, el) {
+
+        /**
+         * @param {Bonzo|string|Element|Array} target the location for which you'll insert your new content
+         * @param {Object=} opt_host an optional host scope (primarily used when integrated with Ender)
+         * @return {Bonzo}
+         */
+      , appendTo: function (target, opt_host) {
+          return insert.call(this, target, opt_host, function (t, el) {
             t.appendChild(el)
           })
         }
 
-      , prependTo: function (target, host) {
-          return insert.call(this, target, host, function (t, el) {
+
+        /**
+         * @param {Bonzo|string|Element|Array} target the location for which you'll insert your new content
+         * @param {Object=} opt_host an optional host scope (primarily used when integrated with Ender)
+         * @return {Bonzo}
+         */
+      , prependTo: function (target, opt_host) {
+          return insert.call(this, target, opt_host, function (t, el) {
             t.insertBefore(el, t.firstChild)
-          })
+          }, 1)
         }
 
+
+        /**
+         * @param {Bonzo|string|Element|Array} node
+         * @return {Bonzo}
+         */
       , before: function (node) {
-          return this.each(function (el) {
-            each(bonzo.create(node), function (i) {
+          var that = this
+          return this.each(function (el, i) {
+            each(normalize(node, that, i), function (i) {
               el[parentNode].insertBefore(i, el)
             })
           })
         }
 
+
+        /**
+         * @param {Bonzo|string|Element|Array} node
+         * @return {Bonzo}
+         */
       , after: function (node) {
-          return this.each(function (el) {
-            each(bonzo.create(node), function (i) {
+          var that = this
+          return this.each(function (el, i) {
+            each(normalize(node, that, i), function (i) {
               el[parentNode].insertBefore(i, el.nextSibling)
-            })
+            }, null, 1)
           })
         }
 
-      , insertBefore: function (target, host) {
-          return insert.call(this, target, host, function (t, el) {
+
+        /**
+         * @param {Bonzo|string|Element|Array} target the location for which you'll insert your new content
+         * @param {Object=} opt_host an optional host scope (primarily used when integrated with Ender)
+         * @return {Bonzo}
+         */
+      , insertBefore: function (target, opt_host) {
+          return insert.call(this, target, opt_host, function (t, el) {
             t[parentNode].insertBefore(el, t)
           })
         }
 
-      , insertAfter: function (target, host) {
-          return insert.call(this, target, host, function (t, el) {
+
+        /**
+         * @param {Bonzo|string|Element|Array} target the location for which you'll insert your new content
+         * @param {Object=} opt_host an optional host scope (primarily used when integrated with Ender)
+         * @return {Bonzo}
+         */
+      , insertAfter: function (target, opt_host) {
+          return insert.call(this, target, opt_host, function (t, el) {
             var sibling = t.nextSibling
-            if (sibling) {
-              t[parentNode].insertBefore(el, sibling);
-            }
-            else {
+            sibling ?
+              t[parentNode].insertBefore(el, sibling) :
               t[parentNode].appendChild(el)
-            }
-          })
+          }, 1)
         }
 
-      , replaceWith: function(html) {
-          this.deepEach(clearData)
 
-          return this.each(function (el) {
-            el.parentNode.replaceChild(bonzo.create(html)[0], el)
-          })
+        /**
+         * @param {Bonzo|string|Element|Array} node
+         * @return {Bonzo}
+         */
+      , replaceWith: function (node) {
+          bonzo(normalize(node)).insertAfter(this)
+          return this.remove()
         }
 
         // class management
+
+        /**
+         * @param {string} c
+         * @return {Bonzo}
+         */
       , addClass: function (c) {
           c = toString.call(c).split(whitespaceRegex)
           return this.each(function (el) {
@@ -973,6 +1131,11 @@
           })
         }
 
+
+        /**
+         * @param {string} c
+         * @return {Bonzo}
+         */
       , removeClass: function (c) {
           c = toString.call(c).split(whitespaceRegex)
           return this.each(function (el) {
@@ -983,6 +1146,11 @@
           })
         }
 
+
+        /**
+         * @param {string} c
+         * @return {boolean}
+         */
       , hasClass: function (c) {
           c = toString.call(c).split(whitespaceRegex)
           return some(this, function (el) {
@@ -992,13 +1160,19 @@
           })
         }
 
-      , toggleClass: function (c, condition) {
+
+        /**
+         * @param {string} c classname to toggle
+         * @param {boolean=} opt_condition whether to add or remove the class straight away
+         * @return {Bonzo}
+         */
+      , toggleClass: function (c, opt_condition) {
           c = toString.call(c).split(whitespaceRegex)
           return this.each(function (el) {
             each(c, function (c) {
               if (c) {
-                typeof condition !== 'undefined' ?
-                  condition ? addClass(el, c) : removeClass(el, c) :
+                typeof opt_condition !== 'undefined' ?
+                  opt_condition ? addClass(el, c) : removeClass(el, c) :
                   hasClass(el, c) ? removeClass(el, c) : addClass(el, c)
               }
             })
@@ -1006,47 +1180,91 @@
         }
 
         // display togglers
-      , show: function (type) {
+
+        /**
+         * @param {string=} opt_type useful to set back to anything other than an empty string
+         * @return {Bonzo}
+         */
+      , show: function (opt_type) {
+          opt_type = typeof opt_type == 'string' ? opt_type : ''
           return this.each(function (el) {
-            el.style.display = type || ''
+            el.style.display = opt_type
           })
         }
 
+
+        /**
+         * @return {Bonzo}
+         */
       , hide: function () {
           return this.each(function (el) {
             el.style.display = 'none'
           })
         }
 
-      , toggle: function (callback, type) {
-          this.each(function (el) {
-            el.style.display = (el.offsetWidth || el.offsetHeight) ? 'none' : type || ''
+
+        /**
+         * @param {Function=} opt_callback
+         * @param {string=} opt_type
+         * @return {Bonzo}
+         */
+      , toggle: function (opt_callback, opt_type) {
+          opt_type = typeof opt_type == 'string' ? opt_type : '';
+          typeof opt_callback != 'function' && (opt_callback = null)
+          return this.each(function (el) {
+            el.style.display = (el.offsetWidth || el.offsetHeight) ? 'none' : opt_type;
+            opt_callback && opt_callback.call(el)
           })
-          callback && callback()
-          return this
         }
 
+
         // DOM Walkers & getters
+
+        /**
+         * @return {Element|Node}
+         */
       , first: function () {
           return bonzo(this.length ? this[0] : [])
         }
 
+
+        /**
+         * @return {Element|Node}
+         */
       , last: function () {
           return bonzo(this.length ? this[this.length - 1] : [])
         }
 
+
+        /**
+         * @return {Element|Node}
+         */
       , next: function () {
           return this.related('nextSibling')
         }
 
+
+        /**
+         * @return {Element|Node}
+         */
       , previous: function () {
           return this.related('previousSibling')
         }
 
+
+        /**
+         * @return {Element|Node}
+         */
       , parent: function() {
           return this.related(parentNode)
         }
 
+
+        /**
+         * @private
+         * @param {string} method the directional DOM method
+         * @return {Element|Node}
+         */
       , related: function (method) {
           return this.map(
             function (el) {
@@ -1062,37 +1280,48 @@
           )
         }
 
-        // meh. use with care. the ones in Bean are better
+
+        /**
+         * @return {Bonzo}
+         */
       , focus: function () {
           this.length && this[0].focus()
           return this
         }
 
+
+        /**
+         * @return {Bonzo}
+         */
       , blur: function () {
-          return this.each(function (el) {
-            el.blur()
-          })
+          this.length && this[0].blur()
+          return this
         }
 
         // style getter setter & related methods
-      , css: function (o, v, p) {
+
+        /**
+         * @param {Object|string} o
+         * @param {string=} opt_v
+         * @return {Bonzo|string}
+         */
+      , css: function (o, opt_v) {
+          var p, iter = o
           // is this a request for just getting a style?
-          if (v === undefined && typeof o == 'string') {
+          if (opt_v === undefined && typeof o == 'string') {
             // repurpose 'v'
-            v = this[0]
-            if (!v) {
-              return null
-            }
-            if (v === doc || v === win) {
-              p = (v === doc) ? bonzo.doc() : bonzo.viewport()
+            opt_v = this[0]
+            if (!opt_v) return null
+            if (opt_v === doc || opt_v === win) {
+              p = (opt_v === doc) ? bonzo.doc() : bonzo.viewport()
               return o == 'width' ? p.width : o == 'height' ? p.height : ''
             }
-            return (o = styleProperty(o)) ? getStyle(v, o) : null
+            return (o = styleProperty(o)) ? getStyle(opt_v, o) : null
           }
-          var iter = o
+
           if (typeof o == 'string') {
             iter = {}
-            iter[o] = v
+            iter[o] = opt_v
           }
 
           if (ie && iter.opacity) {
@@ -1109,17 +1338,27 @@
                 v = iter[k];
                 // change "5" to "5px" - unless you're line-height, which is allowed
                 (p = styleProperty(k)) && digit.test(v) && !(p in unitless) && (v += px)
-                el.style[p] = setter(el, v)
+                try { el.style[p] = setter(el, v) } catch(e) {}
               }
             }
           }
           return this.each(fn)
         }
 
-      , offset: function (x, y) {
-          if (typeof x == 'number' || typeof y == 'number') {
+
+        /**
+         * @param {number=} opt_x
+         * @param {number=} opt_y
+         * @return {Bonzo|number}
+         */
+      , offset: function (opt_x, opt_y) {
+          if (opt_x && typeof opt_x == 'object' && (typeof opt_x.top == 'number' || typeof opt_x.left == 'number')) {
             return this.each(function (el) {
-              xy(el, x, y)
+              xy(el, opt_x.left, opt_x.top)
+            })
+          } else if (typeof opt_x == 'number' || typeof opt_y == 'number') {
+            return this.each(function (el) {
+              xy(el, opt_x, opt_y)
             })
           }
           if (!this[0]) return {
@@ -1129,19 +1368,13 @@
             , width: 0
           }
           var el = this[0]
+            , de = el.ownerDocument.documentElement
+            , bcr = el.getBoundingClientRect()
+            , scroll = getWindowScroll()
             , width = el.offsetWidth
             , height = el.offsetHeight
-            , top = el.offsetTop
-            , left = el.offsetLeft
-          while (el = el.offsetParent) {
-            top = top + el.offsetTop
-            left = left + el.offsetLeft
-
-            if (el != document.body) {
-              top -= el.scrollTop
-              left -= el.scrollLeft
-            }
-          }
+            , top = bcr.top + scroll.y - Math.max(0, de && de.clientTop, doc.body.clientTop)
+            , left = bcr.left + scroll.x - Math.max(0, de && de.clientLeft, doc.body.clientLeft)
 
           return {
               top: top
@@ -1151,26 +1384,35 @@
           }
         }
 
+
+        /**
+         * @return {number}
+         */
       , dim: function () {
           if (!this.length) return { height: 0, width: 0 }
           var el = this[0]
-            , orig = !el.offsetWidth && !el.offsetHeight ?
+            , de = el.nodeType == 9 && el.documentElement // document
+            , orig = !de && !!el.style && !el.offsetWidth && !el.offsetHeight ?
                // el isn't visible, can't be measured properly, so fix that
-               function (t, s) {
-                  s = {
-                      position: el.style.position || ''
-                    , visibility: el.style.visibility || ''
-                    , display: el.style.display || ''
-                  }
-                  t.first().css({
-                      position: 'absolute'
-                    , visibility: 'hidden'
-                    , display: 'block'
-                  })
-                  return s
-                }(this) : null
-            , width = el.offsetWidth
-            , height = el.offsetHeight
+               function (t) {
+                 var s = {
+                     position: el.style.position || ''
+                   , visibility: el.style.visibility || ''
+                   , display: el.style.display || ''
+                 }
+                 t.first().css({
+                     position: 'absolute'
+                   , visibility: 'hidden'
+                   , display: 'block'
+                 })
+                 return s
+              }(this) : null
+            , width = de
+                ? Math.max(el.body.scrollWidth, el.body.offsetWidth, de.scrollWidth, de.offsetWidth, de.clientWidth)
+                : el.offsetWidth
+            , height = de
+                ? Math.max(el.body.scrollHeight, el.body.offsetHeight, de.scrollWidth, de.offsetWidth, de.clientHeight)
+                : el.offsetHeight
 
           orig && this.first().css(orig)
           return {
@@ -1180,7 +1422,13 @@
         }
 
         // attributes are hard. go shopping
-      , attr: function (k, v) {
+
+        /**
+         * @param {string} k an attribute to get or set
+         * @param {string=} opt_v the value to set
+         * @return {Bonzo|string}
+         */
+      , attr: function (k, opt_v) {
           var el = this[0]
           if (typeof k != 'string' && !(k instanceof String)) {
             for (var n in k) {
@@ -1188,22 +1436,32 @@
             }
             return this
           }
-          return typeof v == 'undefined' ?
+          return typeof opt_v == 'undefined' ?
             !el ? null : specialAttributes.test(k) ?
               stateAttributes.test(k) && typeof el[k] == 'string' ?
                 true : el[k] : (k == 'href' || k =='src') && features.hrefExtended ?
                   el[getAttribute](k, 2) : el[getAttribute](k) :
             this.each(function (el) {
-              specialAttributes.test(k) ? (el[k] = setter(el, v)) : el[setAttribute](k, setter(el, v))
+              specialAttributes.test(k) ? (el[k] = setter(el, opt_v)) : el[setAttribute](k, setter(el, opt_v))
             })
         }
 
+
+        /**
+         * @param {string} k
+         * @return {Bonzo}
+         */
       , removeAttr: function (k) {
           return this.each(function (el) {
             stateAttributes.test(k) ? (el[k] = false) : el.removeAttribute(k)
           })
         }
 
+
+        /**
+         * @param {string=} opt_s
+         * @return {Bonzo|string}
+         */
       , val: function (s) {
           return (typeof s == 'string') ?
             this.attr('value', s) :
@@ -1212,35 +1470,45 @@
 
         // use with care and knowledge. this data() method uses data attributes on the DOM nodes
         // to do this differently costs a lot more code. c'est la vie
-      , data: function (k, v) {
-          var el = this[0], uid, o, m
-          if (typeof v === 'undefined') {
+        /**
+         * @param {string|Object=} opt_k the key for which to get or set data
+         * @param {Object=} opt_v
+         * @return {Bonzo|Object}
+         */
+      , data: function (opt_k, opt_v) {
+          var el = this[0], o, m
+          if (typeof opt_v === 'undefined') {
             if (!el) return null
             o = data(el)
-            if (typeof k === 'undefined') {
-              each(el.attributes, function(a) {
+            if (typeof opt_k === 'undefined') {
+              each(el.attributes, function (a) {
                 (m = ('' + a.name).match(dattr)) && (o[camelize(m[1])] = dataValue(a.value))
               })
               return o
             } else {
-              if (typeof o[k] === 'undefined')
-                o[k] = dataValue(this.attr('data-' + decamelize(k)))
-              return o[k]
+              if (typeof o[opt_k] === 'undefined')
+                o[opt_k] = dataValue(this.attr('data-' + decamelize(opt_k)))
+              return o[opt_k]
             }
           } else {
-            return this.each(function (el) { data(el)[k] = v })
+            return this.each(function (el) { data(el)[opt_k] = opt_v })
           }
         }
 
         // DOM detachment & related
+
+        /**
+         * @return {Bonzo}
+         */
       , remove: function () {
           this.deepEach(clearData)
-
-          return this.each(function (el) {
-            el[parentNode] && el[parentNode].removeChild(el)
-          })
+          return this.detach()
         }
 
+
+        /**
+         * @return {Bonzo}
+         */
       , empty: function () {
           return this.each(function (el) {
             deepEach(el.childNodes, clearData)
@@ -1251,25 +1519,66 @@
           })
         }
 
+
+        /**
+         * @return {Bonzo}
+         */
       , detach: function () {
-          return this.map(function (el) {
-            return el[parentNode].removeChild(el)
+          return this.each(function (el) {
+            el[parentNode] && el[parentNode].removeChild(el)
           })
         }
 
         // who uses a mouse anyway? oh right.
+
+        /**
+         * @param {number} y
+         */
       , scrollTop: function (y) {
           return scroll.call(this, null, y, 'y')
         }
 
+
+        /**
+         * @param {number} x
+         */
       , scrollLeft: function (x) {
           return scroll.call(this, x, null, 'x')
         }
 
     }
 
-    function normalize(node) {
-      return typeof node == 'string' ? bonzo.create(node) : isNode(node) ? [node] : node // assume [nodes]
+    function normalize(node, host, clone) {
+      var i, l, ret
+      if (typeof node == 'string') return bonzo.create(node)
+      if (isNode(node)) node = [ node ]
+      if (clone) {
+        ret = [] // don't change original array
+        for (i = 0, l = node.length; i < l; i++) ret[i] = cloneNode(host, node[i])
+        return ret
+      }
+      return node
+    }
+
+    function cloneNode(host, el) {
+      var c = el.cloneNode(true)
+        , cloneElems
+        , elElems
+
+      // check for existence of an event cloner
+      // preferably https://github.com/fat/bean
+      // otherwise Bonzo won't do this for you
+      if (host.$ && typeof host.cloneEvents == 'function') {
+        host.$(c).cloneEvents(el)
+
+        // clone events from every child node
+        cloneElems = host.$(c).find('*')
+        elElems = host.$(el).find('*')
+
+        for (var i = 0; i < elElems.length; i++)
+          host.$(cloneElems[i]).cloneEvents(elElems[i])
+      }
+      return c
     }
 
     function scroll(x, y, type) {
@@ -1295,8 +1604,12 @@
       return { x: win.pageXOffset || html.scrollLeft, y: win.pageYOffset || html.scrollTop }
     }
 
-    function bonzo(els, host) {
-      return new Bonzo(els, host)
+    /**
+     * @param {Array.<Element>|Element|Node|string} els
+     * @return {Bonzo}
+     */
+    function bonzo(els) {
+      return new Bonzo(els)
     }
 
     bonzo.setQueryEngine = function (q) {
@@ -1339,7 +1652,6 @@
           // `dep` > 1 can also cause problems with the insert() check (must do this last)
           each(els, function(el) { el[pn] && el[pn].removeChild(el) })
           return els
-
         }() : isNode(node) ? [node.cloneNode(true)] : []
     }
 
@@ -1424,6 +1736,7 @@
     $.ender({
       parents: function (selector, closest) {
         if (!this.length) return this
+        if (!selector) selector = '*'
         var collection = $(selector), j, k, p, r = []
         for (j = 0, k = this.length; j < k; j++) {
           p = this[j]
@@ -1507,10 +1820,15 @@
       }
     }, true)
 
-    function dimension(type, v) {
-      return typeof v == 'undefined'
+    /**
+     * @param {string} type either width or height
+     * @param {number=} opt_v becomes a setter instead of a getter
+     * @return {number}
+     */
+    function dimension(type, opt_v) {
+      return typeof opt_v == 'undefined'
         ? b(this).dim()[type]
-        : this.css(type, v)
+        : this.css(type, opt_v)
     }
   }(ender));
 }());
@@ -1520,80 +1838,74 @@
   var module = { exports: {} }, exports = module.exports;
 
   /*!
-    * bean.js - copyright Jacob Thornton 2011
+    * Bean - copyright (c) Jacob Thornton 2011-2012
     * https://github.com/fat/bean
-    * MIT License
-    * special thanks to:
-    * dean edwards: http://dean.edwards.name/
-    * dperini: https://github.com/dperini/nwevents
-    * the entire mootools team: github.com/mootools/mootools-core
+    * MIT license
     */
-  !function (name, context, definition) {
-    if (typeof module !== 'undefined') module.exports = definition(name, context);
-    else if (typeof define === 'function' && typeof define.amd  === 'object') define(definition);
+  !(function (name, context, definition) {
+    if (typeof module != 'undefined' && module.exports) module.exports = definition(name, context);
+    else if (typeof define == 'function' && typeof define.amd  == 'object') define(definition);
     else context[name] = definition(name, context);
   }('bean', this, function (name, context) {
-    var win = window
-      , old = context[name]
-      , overOut = /over|out/
+    var win            = window
+      , old            = context[name]
       , namespaceRegex = /[^\.]*(?=\..*)\.|.*/
-      , nameRegex = /\..*/
-      , addEvent = 'addEventListener'
-      , attachEvent = 'attachEvent'
-      , removeEvent = 'removeEventListener'
-      , detachEvent = 'detachEvent'
-      , ownerDocument = 'ownerDocument'
-      , targetS = 'target'
-      , qSA = 'querySelectorAll'
-      , doc = document || {}
-      , root = doc.documentElement || {}
-      , W3C_MODEL = root[addEvent]
-      , eventSupport = W3C_MODEL ? addEvent : attachEvent
-      , slice = Array.prototype.slice
-      , mouseTypeRegex = /click|mouse(?!(.*wheel|scroll))|menu|drag|drop/i
-      , mouseWheelTypeRegex = /mouse.*(wheel|scroll)/i
-      , textTypeRegex = /^text/i
-      , touchTypeRegex = /^touch|^gesture/i
-      , ONE = {} // singleton for quick matching making add() do one()
+      , nameRegex      = /\..*/
+      , addEvent       = 'addEventListener'
+      , removeEvent    = 'removeEventListener'
+      , doc            = document || {}
+      , root           = doc.documentElement || {}
+      , W3C_MODEL      = root[addEvent]
+      , eventSupport   = W3C_MODEL ? addEvent : 'attachEvent'
+      , ONE            = {} // singleton for quick matching making add() do one()
 
+      , slice          = Array.prototype.slice
+      , str2arr        = function (s, d) { return s.split(d || ' ') }
+      , isString       = function (o) { return typeof o == 'string' }
+      , isFunction     = function (o) { return typeof o == 'function' }
+
+        // events that we consider to be 'native', anything not in this list will
+        // be treated as a custom event
+      , standardNativeEvents =
+          'click dblclick mouseup mousedown contextmenu '                  + // mouse buttons
+          'mousewheel mousemultiwheel DOMMouseScroll '                     + // mouse wheel
+          'mouseover mouseout mousemove selectstart selectend '            + // mouse movement
+          'keydown keypress keyup '                                        + // keyboard
+          'orientationchange '                                             + // mobile
+          'focus blur change reset select submit '                         + // form elements
+          'load unload beforeunload resize move DOMContentLoaded '         + // window
+          'readystatechange message '                                      + // window
+          'error abort scroll '                                              // misc
+        // element.fireEvent('onXYZ'... is not forgiving if we try to fire an event
+        // that doesn't actually exist, so make sure we only do these on newer browsers
+      , w3cNativeEvents =
+          'show '                                                          + // mouse buttons
+          'input invalid '                                                 + // form elements
+          'touchstart touchmove touchend touchcancel '                     + // touch
+          'gesturestart gesturechange gestureend '                         + // gesture
+          'textinput'                                                      + // TextEvent
+          'readystatechange pageshow pagehide popstate '                   + // window
+          'hashchange offline online '                                     + // window
+          'afterprint beforeprint '                                        + // printing
+          'dragstart dragenter dragover dragleave drag drop dragend '      + // dnd
+          'loadstart progress suspend emptied stalled loadmetadata '       + // media
+          'loadeddata canplay canplaythrough playing waiting seeking '     + // media
+          'seeked ended durationchange timeupdate play pause ratechange '  + // media
+          'volumechange cuechange '                                        + // media
+          'checking noupdate downloading cached updateready obsolete '       // appcache
+
+        // convert to a hash for quick lookups
       , nativeEvents = (function (hash, events, i) {
-          for (i = 0; i < events.length; i++)
-            hash[events[i]] = 1
+          for (i = 0; i < events.length; i++) events[i] && (hash[events[i]] = 1)
           return hash
-        }({}, (
-            'click dblclick mouseup mousedown contextmenu ' +                  // mouse buttons
-            'mousewheel mousemultiwheel DOMMouseScroll ' +                     // mouse wheel
-            'mouseover mouseout mousemove selectstart selectend ' +            // mouse movement
-            'keydown keypress keyup ' +                                        // keyboard
-            'orientationchange ' +                                             // mobile
-            'focus blur change reset select submit ' +                         // form elements
-            'load unload beforeunload resize move DOMContentLoaded '+          // window
-            'readystatechange message ' +                                      // window
-            'error abort scroll ' +                                            // misc
-            (W3C_MODEL ? // element.fireEvent('onXYZ'... is not forgiving if we try to fire an event
-                         // that doesn't actually exist, so make sure we only do these on newer browsers
-              'show ' +                                                          // mouse buttons
-              'input invalid ' +                                                 // form elements
-              'touchstart touchmove touchend touchcancel ' +                     // touch
-              'gesturestart gesturechange gestureend ' +                         // gesture
-              'readystatechange pageshow pagehide popstate ' +                   // window
-              'hashchange offline online ' +                                     // window
-              'afterprint beforeprint ' +                                        // printing
-              'dragstart dragenter dragover dragleave drag drop dragend ' +      // dnd
-              'loadstart progress suspend emptied stalled loadmetadata ' +       // media
-              'loadeddata canplay canplaythrough playing waiting seeking ' +     // media
-              'seeked ended durationchange timeupdate play pause ratechange ' +  // media
-              'volumechange cuechange ' +                                        // media
-              'checking noupdate downloading cached updateready obsolete ' +     // appcache
-              '' : '')
-          ).split(' ')
-        ))
+        }({}, str2arr(standardNativeEvents + (W3C_MODEL ? w3cNativeEvents : ''))))
 
+        // custom events are events that we *fake*, they are not provided natively but
+        // we can use native events to generate them
       , customEvents = (function () {
-          var cdp = 'compareDocumentPosition'
-            , isAncestor = cdp in root
+          var isAncestor = 'compareDocumentPosition' in root
                 ? function (element, container) {
-                    return container[cdp] && (container[cdp](element) & 16) === 16
+                    return container.compareDocumentPosition && (container.compareDocumentPosition(element) & 16) === 16
                   }
                 : 'contains' in root
                   ? function (element, container) {
@@ -1604,13 +1916,13 @@
                       while (element = element.parentNode) if (element === container) return 1
                       return 0
                     }
-
-          function check(event) {
-            var related = event.relatedTarget
-            return !related
-              ? related === null
-              : (related !== this && related.prefix !== 'xul' && !/document/.test(this.toString()) && !isAncestor(related, this))
-          }
+            , check = function (event) {
+                var related = event.relatedTarget
+                return !related
+                  ? related == null
+                  : (related !== this && related.prefix !== 'xul' && !/document/.test(this.toString())
+                      && !isAncestor(related, this))
+              }
 
           return {
               mouseenter: { base: 'mouseover', condition: check }
@@ -1619,91 +1931,146 @@
           }
         }())
 
-      , fixEvent = (function () {
-          var commonProps = 'altKey attrChange attrName bubbles cancelable ctrlKey currentTarget detail eventPhase getModifierState isTrusted metaKey relatedNode relatedTarget shiftKey srcElement target timeStamp type view which'.split(' ')
-            , mouseProps = commonProps.concat('button buttons clientX clientY dataTransfer fromElement offsetX offsetY pageX pageY screenX screenY toElement'.split(' '))
-            , mouseWheelProps = mouseProps.concat('wheelDelta wheelDeltaX wheelDeltaY wheelDeltaZ axis'.split(' ')) // 'axis' is FF specific
-            , keyProps = commonProps.concat('char charCode key keyCode keyIdentifier keyLocation'.split(' '))
-            , textProps = commonProps.concat(['data'])
-            , touchProps = commonProps.concat('touches targetTouches changedTouches scale rotation'.split(' '))
-            , messageProps = commonProps.concat(['data', 'origin', 'source'])
-            , preventDefault = 'preventDefault'
-            , createPreventDefault = function (event) {
-                return function () {
-                  if (event[preventDefault])
-                    event[preventDefault]()
-                  else
-                    event.returnValue = false
-                }
-              }
-            , stopPropagation = 'stopPropagation'
-            , createStopPropagation = function (event) {
-                return function () {
-                  if (event[stopPropagation])
-                    event[stopPropagation]()
-                  else
-                    event.cancelBubble = true
-                }
-              }
-            , createStop = function (synEvent) {
-                return function () {
-                  synEvent[preventDefault]()
-                  synEvent[stopPropagation]()
-                  synEvent.stopped = true
-                }
-              }
-            , copyProps = function (event, result, props) {
-                var i, p
-                for (i = props.length; i--;) {
-                  p = props[i]
-                  if (!(p in result) && p in event) result[p] = event[p]
+        // we provide a consistent Event object across browsers by taking the actual DOM
+        // event object and generating a new one from its properties.
+      , Event = (function () {
+              // a whitelist of properties (for different event types) tells us what to check for and copy
+          var commonProps  = str2arr('altKey attrChange attrName bubbles cancelable ctrlKey currentTarget ' +
+                'detail eventPhase getModifierState isTrusted metaKey relatedNode relatedTarget shiftKey '  +
+                'srcElement target timeStamp type view which propertyName')
+            , mouseProps   = commonProps.concat(str2arr('button buttons clientX clientY dataTransfer '      +
+                'fromElement offsetX offsetY pageX pageY screenX screenY toElement'))
+            , mouseWheelProps = mouseProps.concat(str2arr('wheelDelta wheelDeltaX wheelDeltaY wheelDeltaZ ' +
+                'axis')) // 'axis' is FF specific
+            , keyProps     = commonProps.concat(str2arr('char charCode key keyCode keyIdentifier '          +
+                'keyLocation location'))
+            , textProps    = commonProps.concat(str2arr('data'))
+            , touchProps   = commonProps.concat(str2arr('touches targetTouches changedTouches scale rotation'))
+            , messageProps = commonProps.concat(str2arr('data origin source'))
+            , stateProps   = commonProps.concat(str2arr('state'))
+            , overOutRegex = /over|out/
+              // some event types need special handling and some need special properties, do that all here
+            , typeFixers   = [
+                  { // key events
+                      reg: /key/i
+                    , fix: function (event, newEvent) {
+                        newEvent.keyCode = event.keyCode || event.which
+                        return keyProps
+                      }
+                  }
+                , { // mouse events
+                      reg: /click|mouse(?!(.*wheel|scroll))|menu|drag|drop/i
+                    , fix: function (event, newEvent, type) {
+                        newEvent.rightClick = event.which === 3 || event.button === 2
+                        newEvent.pos = { x: 0, y: 0 }
+                        if (event.pageX || event.pageY) {
+                          newEvent.clientX = event.pageX
+                          newEvent.clientY = event.pageY
+                        } else if (event.clientX || event.clientY) {
+                          newEvent.clientX = event.clientX + doc.body.scrollLeft + root.scrollLeft
+                          newEvent.clientY = event.clientY + doc.body.scrollTop + root.scrollTop
+                        }
+                        if (overOutRegex.test(type)) {
+                          newEvent.relatedTarget = event.relatedTarget
+                            || event[(type == 'mouseover' ? 'from' : 'to') + 'Element']
+                        }
+                        return mouseProps
+                      }
+                  }
+                , { // mouse wheel events
+                      reg: /mouse.*(wheel|scroll)/i
+                    , fix: function () { return mouseWheelProps }
+                  }
+                , { // TextEvent
+                      reg: /^text/i
+                    , fix: function () { return textProps }
+                  }
+                , { // touch and gesture events
+                      reg: /^touch|^gesture/i
+                    , fix: function () { return touchProps }
+                  }
+                , { // message events
+                      reg: /^message$/i
+                    , fix: function () { return messageProps }
+                  }
+                , { // popstate events
+                      reg: /^popstate$/i
+                    , fix: function () { return stateProps }
+                  }
+                , { // everything else
+                      reg: /.*/
+                    , fix: function () { return commonProps }
+                  }
+              ]
+            , typeFixerMap = {} // used to map event types to fixer functions (above), a basic cache mechanism
+
+            , Event = function (event, element, isNative) {
+                if (!arguments.length) return
+                event = event || ((element.ownerDocument || element.document || element).parentWindow || win).event
+                this.originalEvent = event
+                this.isNative       = isNative
+                this.isBean         = true
+
+                if (!event) return
+
+                var type   = event.type
+                  , target = event.target || event.srcElement
+                  , i, l, p, props, fixer
+
+                this.target = target && target.nodeType === 3 ? target.parentNode : target
+
+                if (isNative) { // we only need basic augmentation on custom events, the rest expensive & pointless
+                  fixer = typeFixerMap[type]
+                  if (!fixer) { // haven't encountered this event type before, map a fixer function for it
+                    for (i = 0, l = typeFixers.length; i < l; i++) {
+                      if (typeFixers[i].reg.test(type)) { // guaranteed to match at least one, last is .*
+                        typeFixerMap[type] = fixer = typeFixers[i].fix
+                        break
+                      }
+                    }
+                  }
+
+                  props = fixer(event, this, type)
+                  for (i = props.length; i--;) {
+                    if (!((p = props[i]) in this) && p in event) this[p] = event[p]
+                  }
                 }
               }
 
-          return function (event, isNative) {
-            var result = { originalEvent: event, isNative: isNative }
-            if (!event)
-              return result
-
-            var props
-              , type = event.type
-              , target = event[targetS] || event.srcElement
-
-            result[preventDefault] = createPreventDefault(event)
-            result[stopPropagation] = createStopPropagation(event)
-            result.stop = createStop(result)
-            result[targetS] = target && target.nodeType === 3 ? target.parentNode : target
-
-            if (isNative) { // we only need basic augmentation on custom events, the rest is too expensive
-              if (type.indexOf('key') !== -1) {
-                props = keyProps
-                result.keyCode = event.keyCode || event.which
-              } else if (mouseTypeRegex.test(type)) {
-                props = mouseProps
-                result.rightClick = event.which === 3 || event.button === 2
-                result.pos = { x: 0, y: 0 }
-                if (event.pageX || event.pageY) {
-                  result.clientX = event.pageX
-                  result.clientY = event.pageY
-                } else if (event.clientX || event.clientY) {
-                  result.clientX = event.clientX + doc.body.scrollLeft + root.scrollLeft
-                  result.clientY = event.clientY + doc.body.scrollTop + root.scrollTop
-                }
-                if (overOut.test(type))
-                  result.relatedTarget = event.relatedTarget || event[(type === 'mouseover' ? 'from' : 'to') + 'Element']
-              } else if (touchTypeRegex.test(type)) {
-                props = touchProps
-              } else if (mouseWheelTypeRegex.test(type)) {
-                props = mouseWheelProps
-              } else if (textTypeRegex.test(type)) {
-                props = textProps
-              } else if (type === 'message') {
-                props = messageProps
-              }
-              copyProps(event, result, props || commonProps)
-            }
-            return result
+          // preventDefault() and stopPropagation() are a consistent interface to those functions
+          // on the DOM, stop() is an alias for both of them together
+          Event.prototype.preventDefault = function () {
+            if (this.originalEvent.preventDefault) this.originalEvent.preventDefault()
+            else this.originalEvent.returnValue = false
           }
+          Event.prototype.stopPropagation = function () {
+            if (this.originalEvent.stopPropagation) this.originalEvent.stopPropagation()
+            else this.originalEvent.cancelBubble = true
+          }
+          Event.prototype.stop = function () {
+            this.preventDefault()
+            this.stopPropagation()
+            this.stopped = true
+          }
+          // stopImmediatePropagation() has to be handled internally because we manage the event list for
+          // each element
+          // note that originalElement may be a Bean#Event object in some situations
+          Event.prototype.stopImmediatePropagation = function () {
+            if (this.originalEvent.stopImmediatePropagation) this.originalEvent.stopImmediatePropagation()
+            this.isImmediatePropagationStopped = function () { return true }
+          }
+          Event.prototype.isImmediatePropagationStopped = function () {
+            return this.originalEvent.isImmediatePropagationStopped && this.originalEvent.isImmediatePropagationStopped()
+          }
+          Event.prototype.clone = function (currentTarget) {
+            //TODO: this is ripe for optimisation, new events are *expensive*
+            // improving this will speed up delegated events
+            var ne = new Event(this, this.element, this.isNative)
+            ne.currentTarget = currentTarget
+            return ne
+          }
+
+          return Event
         }())
 
         // if we're in old IE we can't do onpropertychange on doc or win so we use doc.documentElement for both
@@ -1711,105 +2078,147 @@
           return !W3C_MODEL && !isNative && (element === doc || element === win) ? root : element
         }
 
-        // we use one of these per listener, of any type
+        /**
+          * Bean maintains an internal registry for event listeners. We don't touch elements, objects
+          * or functions to identify them, instead we store everything in the registry.
+          * Each event listener has a RegEntry object, we have one 'registry' for the whole instance.
+          */
       , RegEntry = (function () {
-          function entry(element, type, handler, original, namespaces) {
-            var isNative = this.isNative = nativeEvents[type] && element[eventSupport]
-            this.element = element
-            this.type = type
-            this.handler = handler
-            this.original = original
-            this.namespaces = namespaces
-            this.custom = customEvents[type]
-            this.eventType = W3C_MODEL || isNative ? type : 'propertychange'
-            this.customType = !W3C_MODEL && !isNative && type
-            this[targetS] = targetElement(element, isNative)
-            this[eventSupport] = this[targetS][eventSupport]
-          }
-
-          entry.prototype = {
-              // given a list of namespaces, is our entry in any of them?
-              inNamespaces: function (checkNamespaces) {
-                var i, j
-                if (!checkNamespaces)
-                  return true
-                if (!this.namespaces)
-                  return false
-                for (i = checkNamespaces.length; i--;) {
-                  for (j = this.namespaces.length; j--;) {
-                    if (checkNamespaces[i] === this.namespaces[j])
-                      return true
+          // each handler is wrapped so we can handle delegation and custom events
+          var wrappedHandler = function (element, fn, condition, args) {
+              var call = function (event, eargs) {
+                    return fn.apply(element, args ? slice.call(eargs, event ? 0 : 1).concat(args) : eargs)
                   }
-                }
-                return false
+                , findTarget = function (event, eventElement) {
+                    return fn.__beanDel ? fn.__beanDel.ft(event.target, element) : eventElement
+                  }
+                , handler = condition
+                    ? function (event) {
+                        var target = findTarget(event, this) // deleated event
+                        if (condition.apply(target, arguments)) {
+                          if (event) event.currentTarget = target
+                          return call(event, arguments)
+                        }
+                      }
+                    : function (event) {
+                        if (fn.__beanDel) event = event.clone(findTarget(event)) // delegated event, fix the fix
+                        return call(event, arguments)
+                      }
+              handler.__beanDel = fn.__beanDel
+              return handler
+            }
+
+          , RegEntry = function (element, type, handler, original, namespaces, args, root) {
+              var customType     = customEvents[type]
+                , isNative
+
+              if (type == 'unload') {
+                // self clean-up
+                handler = once(removeListener, element, type, handler, original)
               }
 
-              // match by element, original fn (opt), handler fn (opt)
-            , matches: function (checkElement, checkOriginal, checkHandler) {
-                return this.element === checkElement &&
-                  (!checkOriginal || this.original === checkOriginal) &&
-                  (!checkHandler || this.handler === checkHandler)
+              if (customType) {
+                if (customType.condition) {
+                  handler = wrappedHandler(element, handler, customType.condition, args)
+                }
+                type = customType.base || type
               }
+
+              this.isNative      = isNative = nativeEvents[type] && !!element[eventSupport]
+              this.customType    = !W3C_MODEL && !isNative && type
+              this.element       = element
+              this.type          = type
+              this.original      = original
+              this.namespaces    = namespaces
+              this.eventType     = W3C_MODEL || isNative ? type : 'propertychange'
+              this.target        = targetElement(element, isNative)
+              this[eventSupport] = !!this.target[eventSupport]
+              this.root          = root
+              this.handler       = wrappedHandler(element, handler, null, args)
+            }
+
+          // given a list of namespaces, is our entry in any of them?
+          RegEntry.prototype.inNamespaces = function (checkNamespaces) {
+            var i, j, c = 0
+            if (!checkNamespaces) return true
+            if (!this.namespaces) return false
+            for (i = checkNamespaces.length; i--;) {
+              for (j = this.namespaces.length; j--;) {
+                if (checkNamespaces[i] == this.namespaces[j]) c++
+              }
+            }
+            return checkNamespaces.length === c
           }
 
-          return entry
+          // match by element, original fn (opt), handler fn (opt)
+          RegEntry.prototype.matches = function (checkElement, checkOriginal, checkHandler) {
+            return this.element === checkElement &&
+              (!checkOriginal || this.original === checkOriginal) &&
+              (!checkHandler || this.handler === checkHandler)
+          }
+
+          return RegEntry
         }())
 
       , registry = (function () {
           // our map stores arrays by event type, just because it's better than storing
-          // everything in a single array. uses '$' as a prefix for the keys for safety
+          // everything in a single array.
+          // uses '$' as a prefix for the keys for safety and 'r' as a special prefix for
+          // rootListeners so we can look them up fast
           var map = {}
 
             // generic functional search of our registry for matching listeners,
             // `fn` returns false to break out of the loop
-            , forAll = function (element, type, original, handler, fn) {
-                if (!type || type === '*') {
+            , forAll = function (element, type, original, handler, root, fn) {
+                var pfx = root ? 'r' : '$'
+                if (!type || type == '*') {
                   // search the whole registry
                   for (var t in map) {
-                    if (t.charAt(0) === '$')
-                      forAll(element, t.substr(1), original, handler, fn)
+                    if (t.charAt(0) == pfx) {
+                      forAll(element, t.substr(1), original, handler, root, fn)
+                    }
                   }
                 } else {
-                  var i = 0, l, list = map['$' + type], all = element === '*'
-                  if (!list)
-                    return
+                  var i = 0, l, list = map[pfx + type], all = element == '*'
+                  if (!list) return
                   for (l = list.length; i < l; i++) {
-                    if (all || list[i].matches(element, original, handler))
-                      if (!fn(list[i], list, i, type))
-                        return
+                    if ((all || list[i].matches(element, original, handler)) && !fn(list[i], list, i, type)) return
                   }
                 }
               }
 
-            , has = function (element, type, original) {
+            , has = function (element, type, original, root) {
                 // we're not using forAll here simply because it's a bit slower and this
                 // needs to be fast
-                var i, list = map['$' + type]
+                var i, list = map[(root ? 'r' : '$') + type]
                 if (list) {
                   for (i = list.length; i--;) {
-                    if (list[i].matches(element, original, null))
-                      return true
+                    if (!list[i].root && list[i].matches(element, original, null)) return true
                   }
                 }
                 return false
               }
 
-            , get = function (element, type, original) {
+            , get = function (element, type, original, root) {
                 var entries = []
-                forAll(element, type, original, null, function (entry) { return entries.push(entry) })
+                forAll(element, type, original, null, root, function (entry) {
+                  return entries.push(entry)
+                })
                 return entries
               }
 
             , put = function (entry) {
-                (map['$' + entry.type] || (map['$' + entry.type] = [])).push(entry)
-                return entry
+                var has = !entry.root && !this.has(entry.element, entry.type, null, false)
+                  , key = (entry.root ? 'r' : '$') + entry.type
+                ;(map[key] || (map[key] = [])).push(entry)
+                return has
               }
 
             , del = function (entry) {
-                forAll(entry.element, entry.type, null, entry.handler, function (entry, list, i) {
+                forAll(entry.element, entry.type, null, entry.handler, entry.root, function (entry, list, i) {
                   list.splice(i, 1)
-                  if (list.length === 0)
-                    delete map['$' + entry.type]
+                  entry.removed = true
+                  if (list.length === 0) delete map[(entry.root ? 'r' : '$') + entry.type]
                   return false
                 })
               }
@@ -1818,8 +2227,7 @@
             , entries = function () {
                 var t, entries = []
                 for (t in map) {
-                  if (t.charAt(0) === '$')
-                    entries = entries.concat(map[t])
+                  if (t.charAt(0) == '$') entries = entries.concat(map[t])
                 }
                 return entries
               }
@@ -1827,316 +2235,398 @@
           return { has: has, get: get, put: put, del: del, entries: entries }
         }())
 
-      , selectorEngine = doc[qSA]
-          ? function (s, r) {
-              return r[qSA](s)
-            }
-          : function () {
-              throw new Error('Bean: No selector engine installed') // eeek
-            }
-
+        // we need a selector engine for delegated events, use querySelectorAll if it exists
+        // but for older browsers we need Qwery, Sizzle or similar
+      , selectorEngine
       , setSelectorEngine = function (e) {
-          selectorEngine = e
+          if (!arguments.length) {
+            selectorEngine = doc.querySelectorAll
+              ? function (s, r) {
+                  return r.querySelectorAll(s)
+                }
+              : function () {
+                  throw new Error('Bean: No selector engine installed') // eeek
+                }
+          } else {
+            selectorEngine = e
+          }
+        }
+
+        // we attach this listener to each DOM event that we need to listen to, only once
+        // per event type per DOM element
+      , rootListener = function (event, type) {
+          if (!W3C_MODEL && type && event && event.propertyName != '_on' + type) return
+
+          var listeners = registry.get(this, type || event.type, null, false)
+            , l = listeners.length
+            , i = 0
+
+          event = new Event(event, this, true)
+          if (type) event.type = type
+
+          // iterate through all handlers registered for this type, calling them unless they have
+          // been removed by a previous handler or stopImmediatePropagation() has been called
+          for (; i < l && !event.isImmediatePropagationStopped(); i++) {
+            if (!listeners[i].removed) listeners[i].handler.call(this, event)
+          }
         }
 
         // add and remove listeners to DOM elements
-      , listener = W3C_MODEL ? function (element, type, fn, add) {
-          element[add ? addEvent : removeEvent](type, fn, false)
-        } : function (element, type, fn, add, custom) {
-          if (custom && add && element['_on' + custom] === null)
-            element['_on' + custom] = 0
-          element[add ? attachEvent : detachEvent]('on' + type, fn)
-        }
-
-      , nativeHandler = function (element, fn, args) {
-          var beanDel = fn.__beanDel
-            , handler = function (event) {
-            event = fixEvent(event || ((this[ownerDocument] || this.document || this).parentWindow || win).event, true)
-            if (beanDel) // delegated event, fix the fix
-              event.currentTarget = beanDel.ft(event[targetS], element)
-            return fn.apply(element, [event].concat(args))
-          }
-          handler.__beanDel = beanDel
-          return handler
-        }
-
-      , customHandler = function (element, fn, type, condition, args, isNative) {
-          var beanDel = fn.__beanDel
-            , handler = function (event) {
-            var target = beanDel ? beanDel.ft(event[targetS], element) : this // deleated event
-            if (condition ? condition.apply(target, arguments) : W3C_MODEL ? true : event && event.propertyName === '_on' + type || !event) {
-              if (event) {
-                event = fixEvent(event || ((this[ownerDocument] || this.document || this).parentWindow || win).event, isNative)
-                event.currentTarget = target
-              }
-              fn.apply(element, event && (!args || args.length === 0) ? arguments : slice.call(arguments, event ? 0 : 1).concat(args))
+      , listener = W3C_MODEL
+          ? function (element, type, add) {
+              // new browsers
+              element[add ? addEvent : removeEvent](type, rootListener, false)
             }
-          }
-          handler.__beanDel = beanDel
-          return handler
-        }
+          : function (element, type, add, custom) {
+              // IE8 and below, use attachEvent/detachEvent and we have to piggy-back propertychange events
+              // to simulate event bubbling etc.
+              var entry
+              if (add) {
+                registry.put(entry = new RegEntry(
+                    element
+                  , custom || type
+                  , function (event) { // handler
+                      rootListener.call(element, event, custom)
+                    }
+                  , rootListener
+                  , null
+                  , null
+                  , true // is root
+                ))
+                if (custom && element['_on' + custom] == null) element['_on' + custom] = 0
+                entry.target.attachEvent('on' + entry.eventType, entry.handler)
+              } else {
+                entry = registry.get(element, custom || type, rootListener, true)[0]
+                if (entry) {
+                  entry.target.detachEvent('on' + entry.eventType, entry.handler)
+                  registry.del(entry)
+                }
+              }
+            }
 
       , once = function (rm, element, type, fn, originalFn) {
           // wrap the handler in a handler that does a remove as well
           return function () {
-            rm(element, type, originalFn)
             fn.apply(this, arguments)
+            rm(element, type, originalFn)
           }
         }
 
       , removeListener = function (element, orgType, handler, namespaces) {
-          var i, l, entry
-            , type = (orgType && orgType.replace(nameRegex, ''))
-            , handlers = registry.get(element, type, handler)
+          var type     = orgType && orgType.replace(nameRegex, '')
+            , handlers = registry.get(element, type, null, false)
+            , removed  = {}
+            , i, l
 
           for (i = 0, l = handlers.length; i < l; i++) {
-            if (handlers[i].inNamespaces(namespaces)) {
-              if ((entry = handlers[i])[eventSupport])
-                listener(entry[targetS], entry.eventType, entry.handler, false, entry.type)
+            if ((!handler || handlers[i].original === handler) && handlers[i].inNamespaces(namespaces)) {
               // TODO: this is problematic, we have a registry.get() and registry.del() that
               // both do registry searches so we waste cycles doing this. Needs to be rolled into
               // a single registry.forAll(fn) that removes while finding, but the catch is that
               // we'll be splicing the arrays that we're iterating over. Needs extra tests to
               // make sure we don't screw it up. @rvagg
-              registry.del(entry)
+              registry.del(handlers[i])
+              if (!removed[handlers[i].eventType] && handlers[i][eventSupport])
+                removed[handlers[i].eventType] = { t: handlers[i].eventType, c: handlers[i].type }
+            }
+          }
+          // check each type/element for removed listeners and remove the rootListener where it's no longer needed
+          for (i in removed) {
+            if (!registry.has(element, removed[i].t, null, false)) {
+              // last listener of this type, remove the rootListener
+              listener(element, removed[i].t, false, removed[i].c)
             }
           }
         }
 
-      , addListener = function (element, orgType, fn, originalFn, args) {
-          var entry
-            , type = orgType.replace(nameRegex, '')
-            , namespaces = orgType.replace(namespaceRegex, '').split('.')
-
-          if (registry.has(element, type, fn))
-            return element // no dupe
-          if (type === 'unload')
-            fn = once(removeListener, element, type, fn, originalFn) // self clean-up
-          if (customEvents[type]) {
-            if (customEvents[type].condition)
-              fn = customHandler(element, fn, type, customEvents[type].condition, args, true)
-            type = customEvents[type].base || type
-          }
-          entry = registry.put(new RegEntry(element, type, fn, originalFn, namespaces[0] && namespaces))
-          entry.handler = entry.isNative ?
-            nativeHandler(element, entry.handler, args) :
-            customHandler(element, entry.handler, type, false, args, false)
-          if (entry[eventSupport])
-            listener(entry[targetS], entry.eventType, entry.handler, true, entry.customType)
-        }
-
-      , del = function (selector, fn, $) {
-              //TODO: findTarget (therefore $) is called twice, once for match and once for
-              // setting e.currentTarget, fix this so it's only needed once
+        // set up a delegate helper using the given selector, wrap the handler function
+      , delegate = function (selector, fn) {
+          //TODO: findTarget (therefore $) is called twice, once for match and once for
+          // setting e.currentTarget, fix this so it's only needed once
           var findTarget = function (target, root) {
-                var i, array = typeof selector === 'string' ? $(selector, root) : selector
+                var i, array = isString(selector) ? selectorEngine(selector, root) : selector
                 for (; target && target !== root; target = target.parentNode) {
                   for (i = array.length; i--;) {
-                    if (array[i] === target)
-                      return target
+                    if (array[i] === target) return target
                   }
                 }
               }
             , handler = function (e) {
-                var match = findTarget(e[targetS], this)
-                match && fn.apply(match, arguments)
+                var match = findTarget(e.target, this)
+                if (match) fn.apply(match, arguments)
               }
 
+          // __beanDel isn't pleasant but it's a private function, not exposed outside of Bean
           handler.__beanDel = {
-              ft: findTarget // attach it here for customEvents to use too
-            , selector: selector
-            , $: $
+              ft       : findTarget // attach it here for customEvents to use too
+            , selector : selector
           }
           return handler
         }
 
-      , remove = function (element, typeSpec, fn) {
-          var k, type, namespaces, i
-            , rm = removeListener
-            , isString = typeSpec && typeof typeSpec === 'string'
-
-          if (isString && typeSpec.indexOf(' ') > 0) {
-            // remove(el, 't1 t2 t3', fn) or remove(el, 't1 t2 t3')
-            typeSpec = typeSpec.split(' ')
-            for (i = typeSpec.length; i--;)
-              remove(element, typeSpec[i], fn)
-            return element
-          }
-          type = isString && typeSpec.replace(nameRegex, '')
-          if (type && customEvents[type])
-            type = customEvents[type].type
-          if (!typeSpec || isString) {
-            // remove(el) or remove(el, t1.ns) or remove(el, .ns) or remove(el, .ns1.ns2.ns3)
-            if (namespaces = isString && typeSpec.replace(namespaceRegex, ''))
-              namespaces = namespaces.split('.')
-            rm(element, type, fn, namespaces)
-          } else if (typeof typeSpec === 'function') {
-            // remove(el, fn)
-            rm(element, null, typeSpec)
-          } else {
-            // remove(el, { t1: fn1, t2, fn2 })
-            for (k in typeSpec) {
-              if (typeSpec.hasOwnProperty(k))
-                remove(element, k, typeSpec[k])
-            }
-          }
-          return element
-        }
-
-        // 5th argument, $=selector engine, is deprecated and will be removed
-      , add = function (element, events, fn, delfn, $) {
-          var type, types, i, args
-            , originalFn = fn
-            , isDel = fn && typeof fn === 'string'
-
-          if (events && !fn && typeof events === 'object') {
-            for (type in events) {
-              if (events.hasOwnProperty(type))
-                add.apply(this, [ element, type, events[type] ])
-            }
-          } else {
-            args = arguments.length > 3 ? slice.call(arguments, 3) : []
-            types = (isDel ? fn : events).split(' ')
-            isDel && (fn = del(events, (originalFn = delfn), $ || selectorEngine)) && (args = slice.call(args, 1))
-            // special case for one()
-            this === ONE && (fn = once(remove, element, events, fn, originalFn))
-            for (i = types.length; i--;) addListener(element, types[i], fn, originalFn, args)
-          }
-          return element
-        }
-
-      , one = function () {
-          return add.apply(ONE, arguments)
-        }
-
       , fireListener = W3C_MODEL ? function (isNative, type, element) {
+          // modern browsers, do a proper dispatchEvent()
           var evt = doc.createEvent(isNative ? 'HTMLEvents' : 'UIEvents')
           evt[isNative ? 'initEvent' : 'initUIEvent'](type, true, true, win, 1)
           element.dispatchEvent(evt)
         } : function (isNative, type, element) {
+          // old browser use onpropertychange, just increment a custom property to trigger the event
           element = targetElement(element, isNative)
-          // if not-native then we're using onpropertychange so we just increment a custom property
           isNative ? element.fireEvent('on' + type, doc.createEventObject()) : element['_on' + type]++
         }
 
+        /**
+          * Public API: off(), on(), add(), (remove()), one(), fire(), clone()
+          */
+
+        /**
+          * off(element[, eventType(s)[, handler ]])
+          */
+      , off = function (element, typeSpec, fn) {
+          var isTypeStr = isString(typeSpec)
+            , k, type, namespaces, i
+
+          if (isTypeStr && typeSpec.indexOf(' ') > 0) {
+            // off(el, 't1 t2 t3', fn) or off(el, 't1 t2 t3')
+            typeSpec = str2arr(typeSpec)
+            for (i = typeSpec.length; i--;)
+              off(element, typeSpec[i], fn)
+            return element
+          }
+
+          type = isTypeStr && typeSpec.replace(nameRegex, '')
+          if (type && customEvents[type]) type = customEvents[type].type
+
+          if (!typeSpec || isTypeStr) {
+            // off(el) or off(el, t1.ns) or off(el, .ns) or off(el, .ns1.ns2.ns3)
+            if (namespaces = isTypeStr && typeSpec.replace(namespaceRegex, '')) namespaces = str2arr(namespaces, '.')
+            removeListener(element, type, fn, namespaces)
+          } else if (isFunction(typeSpec)) {
+            // off(el, fn)
+            removeListener(element, null, typeSpec)
+          } else {
+            // off(el, { t1: fn1, t2, fn2 })
+            for (k in typeSpec) {
+              if (typeSpec.hasOwnProperty(k)) off(element, k, typeSpec[k])
+            }
+          }
+
+          return element
+        }
+
+        /**
+          * on(element, eventType(s)[, selector], handler[, args ])
+          */
+      , on = function(element, events, selector, fn) {
+          var originalFn, type, types, i, args, entry, first
+
+          //TODO: the undefined check means you can't pass an 'args' argument, fix this perhaps?
+          if (selector === undefined && typeof events == 'object') {
+            //TODO: this can't handle delegated events
+            for (type in events) {
+              if (events.hasOwnProperty(type)) {
+                on.call(this, element, type, events[type])
+              }
+            }
+            return
+          }
+
+          if (!isFunction(selector)) {
+            // delegated event
+            originalFn = fn
+            args       = slice.call(arguments, 4)
+            fn         = delegate(selector, originalFn, selectorEngine)
+          } else {
+            args       = slice.call(arguments, 3)
+            fn         = originalFn = selector
+          }
+
+          types = str2arr(events)
+
+          // special case for one(), wrap in a self-removing handler
+          if (this === ONE) {
+            fn = once(off, element, events, fn, originalFn)
+          }
+
+          for (i = types.length; i--;) {
+            // add new handler to the registry and check if it's the first for this element/type
+            first = registry.put(entry = new RegEntry(
+                element
+              , types[i].replace(nameRegex, '') // event type
+              , fn
+              , originalFn
+              , str2arr(types[i].replace(namespaceRegex, ''), '.') // namespaces
+              , args
+              , false // not root
+            ))
+            if (entry[eventSupport] && first) {
+              // first event of this type on this element, add root listener
+              listener(element, entry.eventType, true, entry.customType)
+            }
+          }
+
+          return element
+        }
+
+        /**
+          * add(element[, selector], eventType(s), handler[, args ])
+          *
+          * Deprecated: kept (for now) for backward-compatibility
+          */
+      , add = function (element, events, fn, delfn) {
+          return on.apply(
+              null
+            , !isString(fn)
+                ? slice.call(arguments)
+                : [ element, fn, events, delfn ].concat(arguments.length > 3 ? slice.call(arguments, 5) : [])
+          )
+        }
+
+        /**
+          * one(element, eventType(s)[, selector], handler[, args ])
+          */
+      , one = function () {
+          return on.apply(ONE, arguments)
+        }
+
+        /**
+          * fire(element, eventType(s)[, args ])
+          *
+          * The optional 'args' argument must be an array, if no 'args' argument is provided
+          * then we can use the browser's DOM event system, otherwise we trigger handlers manually
+          */
       , fire = function (element, type, args) {
-          var i, j, l, names, handlers
-            , types = type.split(' ')
+          var types = str2arr(type)
+            , i, j, l, names, handlers
 
           for (i = types.length; i--;) {
             type = types[i].replace(nameRegex, '')
-            if (names = types[i].replace(namespaceRegex, ''))
-              names = names.split('.')
+            if (names = types[i].replace(namespaceRegex, '')) names = str2arr(names, '.')
             if (!names && !args && element[eventSupport]) {
               fireListener(nativeEvents[type], type, element)
             } else {
               // non-native event, either because of a namespace, arguments or a non DOM element
               // iterate over all listeners and manually 'fire'
-              handlers = registry.get(element, type)
+              handlers = registry.get(element, type, null, false)
               args = [false].concat(args)
               for (j = 0, l = handlers.length; j < l; j++) {
-                if (handlers[j].inNamespaces(names))
+                if (handlers[j].inNamespaces(names)) {
                   handlers[j].handler.apply(element, args)
+                }
               }
             }
           }
           return element
         }
 
+        /**
+          * clone(dstElement, srcElement[, eventType ])
+          *
+          * TODO: perhaps for consistency we should allow the same flexibility in type specifiers?
+          */
       , clone = function (element, from, type) {
-          var i = 0
-            , handlers = registry.get(from, type)
+          var handlers = registry.get(from, type, null, false)
             , l = handlers.length
+            , i = 0
             , args, beanDel
 
-          for (;i < l; i++) {
+          for (; i < l; i++) {
             if (handlers[i].original) {
-              beanDel = handlers[i].handler.__beanDel
-              if (beanDel) {
-                args = [ element, beanDel.selector, handlers[i].type, handlers[i].original, beanDel.$]
-              } else
-                args = [ element, handlers[i].type, handlers[i].original ]
-              add.apply(null, args)
+              args = [ element, handlers[i].type ]
+              if (beanDel = handlers[i].handler.__beanDel) args.push(beanDel.selector)
+              args.push(handlers[i].original)
+              on.apply(null, args)
             }
           }
           return element
         }
 
       , bean = {
-            add: add
-          , one: one
-          , remove: remove
-          , clone: clone
-          , fire: fire
-          , setSelectorEngine: setSelectorEngine
-          , noConflict: function () {
+            on                : on
+          , add               : add
+          , one               : one
+          , off               : off
+          , remove            : off
+          , clone             : clone
+          , fire              : fire
+          , setSelectorEngine : setSelectorEngine
+          , noConflict        : function () {
               context[name] = old
               return this
             }
         }
 
-    if (win[attachEvent]) {
-      // for IE, clean up on unload to avoid leaks
+    // for IE, clean up on unload to avoid leaks
+    if (win.attachEvent) {
       var cleanup = function () {
         var i, entries = registry.entries()
         for (i in entries) {
-          if (entries[i].type && entries[i].type !== 'unload')
-            remove(entries[i].element, entries[i].type)
+          if (entries[i].type && entries[i].type !== 'unload') off(entries[i].element, entries[i].type)
         }
-        win[detachEvent]('onunload', cleanup)
+        win.detachEvent('onunload', cleanup)
         win.CollectGarbage && win.CollectGarbage()
       }
-      win[attachEvent]('onunload', cleanup)
+      win.attachEvent('onunload', cleanup)
     }
 
+    // initialize selector engine to internal default (qSA or throw Error)
+    setSelectorEngine()
+
     return bean
-  })
+  }));
 
   provide("bean", module.exports);
 
   !function ($) {
     var b = require('bean')
+
       , integrate = function (method, type, method2) {
           var _args = type ? [type] : []
           return function () {
             for (var i = 0, l = this.length; i < l; i++) {
-              if (!arguments.length && method == 'add' && type) method = 'fire'
+              if (!arguments.length && method == 'on' && type) method = 'fire'
               b[method].apply(this, [this[i]].concat(_args, Array.prototype.slice.call(arguments, 0)))
             }
             return this
           }
         }
-      , add = integrate('add')
-      , remove = integrate('remove')
-      , fire = integrate('fire')
+
+      , add   = integrate('add')
+      , on    = integrate('on')
+      , one   = integrate('one')
+      , off   = integrate('off')
+      , fire  = integrate('fire')
+      , clone = integrate('clone')
+
+      , hover = function (enter, leave, i) { // i for internal
+          for (i = this.length; i--;) {
+            b.on.call(this, this[i], 'mouseenter', enter)
+            b.on.call(this, this[i], 'mouseleave', leave)
+          }
+          return this
+        }
 
       , methods = {
-            on: add // NOTE: .on() is likely to change in the near future, don't rely on this as-is see https://github.com/fat/bean/issues/55
-          , addListener: add
-          , bind: add
-          , listen: add
-          , delegate: add
+            on             : on
+          , addListener    : on
+          , bind           : on
+          , listen         : on
+          , delegate       : add // jQuery compat, same arg order as add()
 
-          , one: integrate('one')
+          , one            : one
 
-          , off: remove
-          , unbind: remove
-          , unlisten: remove
-          , removeListener: remove
-          , undelegate: remove
+          , off            : off
+          , unbind         : off
+          , unlisten       : off
+          , removeListener : off
+          , undelegate     : off
 
-          , emit: fire
-          , trigger: fire
+          , emit           : fire
+          , trigger        : fire
 
-          , cloneEvents: integrate('clone')
+          , cloneEvents    : clone
 
-          , hover: function (enter, leave, i) { // i for internal
-              for (i = this.length; i--;) {
-                b.add.call(this, this[i], 'mouseenter', enter)
-                b.add.call(this, this[i], 'mouseleave', leave)
-              }
-              return this
-            }
+          , hover          : hover
         }
 
       , shortcuts =
@@ -2145,14 +2635,13 @@
           + 'mousemove resize scroll select submit unload').split(' ')
 
     for (var i = shortcuts.length; i--;) {
-      methods[shortcuts[i]] = integrate('add', shortcuts[i])
+      methods[shortcuts[i]] = integrate('on', shortcuts[i])
     }
 
     b.setSelectorEngine($)
 
     $.ender(methods, true)
-  }(ender)
-
+  }(ender);
 }());
 
 (function () {
@@ -2361,18 +2850,493 @@
 
   var module = { exports: {} }, exports = module.exports;
 
+  /***************************************************************
+    * Traversty: A DOM collection management and traversal utility
+    * (c) Rod Vagg (@rvagg) 2012
+    * https://github.com/rvagg/traversty
+    * License: MIT
+    */
+
+  !(function (name, definition) {
+    if (typeof module !== 'undefined') module.exports = definition()
+    else if (typeof define === 'function' && define.amd) define(name, definition)
+    else this[name] = definition()
+  }('traversty', function () {
+
+    var context = this
+      , old = context.traversty
+      , doc = window.document
+      , html = doc.documentElement
+      , toString = Object.prototype.toString
+      , Ap = Array.prototype
+      , slice = Ap.slice
+        // feature test to find native matchesSelector()
+      , matchesSelector = (function (el, pfx, name, i, ms) {
+          while (i < pfx.length)
+            if (el[ms = pfx[i++] + name]) return ms
+        }(html, [ 'msM', 'webkitM', 'mozM', 'oM', 'm' ], 'atchesSelector', 0))
+
+      , Kfalse = function () { return false }
+
+      , isNumber = function (o) {
+          return toString.call(o) === '[object Number]'
+        }
+
+      , isString = function (o) {
+          return toString.call(o) === '[object String]'
+        }
+
+      , isFunction = function (o) {
+          return toString.call(o) === '[object Function]'
+        }
+
+      , isUndefined = function (o) {
+          return o === void 0
+        }
+
+      , isElement = function (o) {
+          return o && o.nodeType === 1
+        }
+
+        // figure out which argument, if any, is our 'index'
+      , getIndex = function (selector, index) {
+          return isUndefined(selector) && !isNumber(index) ? 0 :
+            isNumber(selector) ? selector : isNumber(index) ? index : null
+        }
+
+        // figure out which argument, if any, is our 'selector'
+      , getSelector = function (selector) {
+          return isString(selector) ? selector : '*'
+        }
+
+      , nativeSelectorFind = function (selector, el) {
+          return slice.call(el.querySelectorAll(selector), 0)
+        }
+
+      , nativeSelectorMatches = function (selector, el) {
+          return selector === '*' || el[matchesSelector](selector)
+        }
+
+      , selectorFind = nativeSelectorFind
+
+      , selectorMatches = nativeSelectorMatches
+
+        // used in the case where our selector engine does out-of-order element returns for
+        // grouped selectors, e.g. '.class, tag', we need our elements in document-order
+        // so we do it ourselves if need be
+      , createUnorderedEngineSelectorFind = function(engineSelect, selectorMatches) {
+          return function (selector, el) {
+            if (/,/.test(selector)) {
+              var ret = [], i = -1, els = el.getElementsByTagName('*')
+              while (++i < els.length) {
+                if (isElement(els[i]) && selectorMatches(selector, els[i])) ret.push(els[i])
+              }
+              return ret
+            }
+            return engineSelect(selector, el)
+          }
+        }
+
+        // is 'element' underneath 'container' somewhere
+      , isAncestor = 'compareDocumentPosition' in html
+          ? function (element, container) {
+              return (container.compareDocumentPosition(element) & 16) == 16
+            }
+          : 'contains' in html
+            ? function (element, container) {
+                container = container.nodeType === 9 || container == window ? html : container
+                return container !== element && container.contains(element)
+              }
+            : function (element, container) { // old smelly browser
+                while (element = element.parentNode) if (element === container) return 1
+                return 0
+              }
+
+        // return an array containing only unique elements
+      , unique = function (ar) {
+          var a = [], i = -1, j, has
+          while (++i < ar.length) {
+            j = -1
+            has = false
+            while (++j < a.length) {
+              if (a[j] === ar[i]) {
+                has = true
+                break
+              }
+            }
+            if (!has) a.push(ar[i])
+          }
+          return a
+        }
+
+        // for each element of 'els' execute 'fn' to get an array of elements to collect
+      , collect = function (els, fn) {
+          var ret = [], res, i = 0, j, l = els.length, l2
+          while (i < l) {
+            j = 0
+            l2 = (res = fn(els[i], i++)).length
+            while (j < l2) ret.push(res[j++])
+          }
+          return ret
+        }
+
+       // generic DOM navigator to move multiple elements around the DOM
+     , move = function (els, method, selector, index, filterFn) {
+          index = getIndex(selector, index)
+          selector = getSelector(selector)
+          return collect(els
+            , function (el, elind) {
+                var i = index || 0, ret = []
+                if (!filterFn)
+                  el = el[method]
+                while (el && (index === null || i >= 0)) {
+                  // ignore non-elements, only consider selector-matching elements
+                  // handle both the index and no-index (selector-only) cases
+                  if (isElement(el)
+                      && (!filterFn || filterFn === true || filterFn(el, elind))
+                      && selectorMatches(selector, el)
+                      && (index === null || i-- === 0)) {
+                    // this concat vs push is to make sure we add elements to the result array
+                    // in reverse order when doing a previous(selector) and up(selector)
+                    index === null && method !== 'nextSibling' ? ret = [el].concat(ret) : ret.push(el)
+                  }
+                  el = el[method]
+                }
+                return ret
+              }
+          )
+        }
+
+        // given an index & length, return a 'fixed' index, fixes non-numbers & neative indexes
+      , eqIndex = function (length, index, def) {
+          if (index < 0) index = length + index
+          if (index < 0 || index >= length) return null
+          return !index && index !== 0 ? def : index
+        }
+
+        // collect elements of an array that match a filter function
+      , filter = function (els, fn) {
+          var arr = [], i = 0, l = els.length
+          for (; i < l; i++)
+            fn(els[i], i) && arr.push(els[i])
+          return arr
+        }
+
+        // create a filter function, for use by filter(), is() & not()
+        // allows the argument to be an element, a function or a selector
+      , filterFn = function (slfn) {
+          var to
+          return isElement(slfn)
+            ? function (el) { return el === slfn }
+            : (to = typeof slfn) == 'function'
+              ? function (el, i) { return slfn.call(el, i) }
+              : to == 'string' && slfn.length
+                ? function (el) { return selectorMatches(slfn, el) }
+                : Kfalse
+        }
+
+        // fn = !fn
+      , inv = function (fn) {
+          return function () {
+            return !fn.apply(this, arguments)
+          }
+        }
+
+      , traversty = (function () {
+          function T(els) {
+            this.length = 0
+            if (els) {
+              els = unique(!els.nodeType && !isUndefined(els.length) ? els : [ els ])
+              var i = this.length = els.length
+              while (i--) this[i] = els[i]
+            }
+          }
+
+          T.prototype = {
+              down: function (selector, index) {
+                index = getIndex(selector, index)
+                selector = getSelector(selector)
+                return traversty(collect(this
+                  , function (el) {
+                      var f = selectorFind(selector, el)
+                      return index === null ? f : ([ f[index] ] || [])
+                    }
+                  ))
+              }
+
+            , up: function (selector, index) {
+                return traversty(move(this, 'parentNode', selector, index))
+              }
+
+            , parents: function () {
+                return T.prototype.up.apply(this, arguments.length ? arguments : [ '*' ])
+              }
+
+            , closest: function (selector, index) {
+                if (isNumber(selector)) {
+                  index = selector
+                  selector = '*'
+                } else if (!isString(selector)) {
+                  return traversty([])
+                } else if (!isNumber(index)) {
+                  index = 0
+                }
+                return traversty(move(this, 'parentNode', selector, index, true))
+              }
+
+            , previous: function (selector, index) {
+                return traversty(move(this, 'previousSibling', selector, index))
+              }
+
+            , next: function (selector, index) {
+                return traversty(move(this, 'nextSibling', selector, index))
+              }
+
+            , siblings: function (selector, index) {
+                var self = this
+                  , arr = slice.call(this, 0)
+                  , i = 0, l = arr.length
+                for (; i < l; i++) {
+                  arr[i] = arr[i].parentNode.firstChild
+                  while (!isElement(arr[i])) arr[i] = arr[i].nextSibling
+                }
+                if (isUndefined(selector))
+                  selector = '*'
+
+                return traversty(move(arr, 'nextSibling', selector || '*', index
+                      , function (el, i) { return el !== self[i] } // filter
+                    ))
+              }
+
+            , children: function (selector, index) {
+                return traversty(move(T.prototype.down.call(this), 'nextSibling', selector || '*', index, true))
+              }
+
+            , first: function () {
+                return T.prototype.eq.call(this, 0)
+              }
+
+            , last: function () {
+                return T.prototype.eq.call(this, -1)
+              }
+
+            , eq: function (index) {
+                return traversty(this.get(index))
+              }
+
+            , get: function (index) {
+                return this[eqIndex(this.length, index, 0)]
+              }
+
+              // a crazy man wrote this, don't try to understand it, see the tests
+            , slice: function (start, end) {
+                var e = end, l = this.length, arr = []
+                start = eqIndex(l, Math.max(-this.length, start), 0)
+                e = eqIndex(end < 0 ? l : l + 1, end, l)
+                end = e === null || e > l ? end < 0 ? 0 : l : e
+                while (start !== null && start < end)
+                  arr.push(this[start++])
+                return traversty(arr)
+              }
+
+            , filter: function (slfn) {
+                return traversty(filter(this, filterFn(slfn)))
+              }
+
+            , not: function (slfn) {
+                return traversty(filter(this, inv(filterFn(slfn))))
+              }
+
+              // similar to filter() but cares about descendent elements
+            , has: function (slel) {
+                return traversty(filter(
+                    this
+                  , isElement(slel)
+                      ? function (el) { return isAncestor(slel, el) }
+                      : typeof slel == 'string' && slel.length
+                        ? function (el) { return selectorFind(slel, el).length } //TODO: performance
+                        : Kfalse
+                ))
+              }
+
+              // same as filter() but return a boolean so quick-return after first successful find
+            , is: function (slfn) {
+                var i = 0, l = this.length
+                  , fn = filterFn(slfn)
+                for (; i < l; i++)
+                  if (fn(this[i], i)) return true
+                return false
+              }
+
+            , toArray: function () { return Ap.slice.call(this) }
+
+            , size: function () { return this.length }
+
+            , each: function (fn, ctx) {
+                var i = 0, l = this.length
+                for (; i < l; i++)
+                  fn.call(ctx || this[i], this[i], i, this)
+                return this
+              }
+
+              // quack like a duck (Array)
+            , push: Ap.push
+            , sort: Ap.sort
+            , splice: Ap.splice
+          }
+
+          T.prototype.prev = T.prototype.previous
+
+          function t(els) {
+            return new T(isString(els) ? selectorFind(els, doc) : els)
+          }
+
+          // extend traversty functionality with custom methods
+          t.aug = function (methods) {
+            var key, method
+            for (key in methods) {
+              method = methods[key]
+              if (typeof method == 'function') {
+                T.prototype[key] = method
+              }
+            }
+          }
+
+
+          t.setSelectorEngine = function (s) {
+            // feature testing the selector engine like a boss
+            var ss, r, a, _selectorMatches, _selectorFind
+              , e = doc.createElement('p')
+              , select = s.select || s.sel || s
+
+            e.innerHTML = '<a/><i/><b/>'
+            a = e.firstChild
+            try {
+              // YO! I HEARD YOU LIKED NESTED TERNARY OPERATORS SO I COOKED SOME UP FOR YOU!
+              // (one day I might loop this...)
+
+              // check to see how we do a matchesSelector
+              _selectorMatches = isFunction(s.matching)
+                ? function (selector, el) { return s.matching([el], selector).length > 0 }
+                : isFunction(s.is)
+                  ? function (selector, el) { return s.is(el, selector) }
+                  : isFunction(s.matchesSelector)
+                    ? function (selector, el) { return s.matchesSelector(el, selector) }
+                    : isFunction(s.match)
+                      ? function (selector, el) { return s.match(el, selector) }
+                      : isFunction(s.matches)
+                        ? function (selector, el) { return s.matches(el, selector) }
+                        : null
+
+              if (!_selectorMatches) {
+                // perhaps it's an selector(x).is(y) type selector?
+                ss = s('a', e)
+                _selectorMatches = isFunction(ss._is)
+                  ? function (selector, el) { return s(el)._is(selector) } // original .is(), replaced by Enderbridge
+                  : isFunction(ss.matching)
+                    ? function (selector, el) { return s(el).matching(selector).length > 0 }
+                    : isFunction(ss.is) && !ss.is.__ignore
+                      ? function (selector, el) { return s(el).is(selector) }
+                        : isFunction(ss.matchesSelector)
+                          ? function (selector, el) { return s(el).matchesSelector(selector) }
+                          : isFunction(ss.match)
+                            ? function (selector, el) { return s(el).match(selector) }
+                            : isFunction(ss.matches)
+                              ? function (selector, el) { return s(el).matches(selector) }
+                              : null
+              }
+
+              if (!_selectorMatches)
+                  throw 'Traversty: couldn\'t find selector engine\'s `matchesSelector`'
+
+              // verify that we have a working `matchesSelector`
+              if (_selectorMatches('x,y', e) || !_selectorMatches('a,p', e))
+                  throw 'Traversty: couldn\'t make selector engine\'s `matchesSelector` work'
+
+              // basic select
+              if ((r = select('b,a', e)).length !== 2) throw 'Traversty: don\'t know how to use this selector engine'
+              // check to see if the selector engine has given us the results in document-order
+              // and if not, work around it
+              _selectorFind = r[0] === a ? select : createUnorderedEngineSelectorFind(select, _selectorMatches)
+              // have we done enough to get a working `selectorFind`?
+              if ((r = _selectorFind('b,a', e)).length !== 2 || r[0] !== a)
+                throw 'Traversty: couldn\'t make selector engine work'
+
+              selectorMatches = _selectorMatches
+              selectorFind = _selectorFind
+            } catch (ex) {
+              if (isString(ex)) throw ex
+              throw 'Traversty: error while figuring out how the selector engine works: ' + (ex.message || ex)
+            } finally {
+              e = null
+            }
+          }
+
+          t.noConflict = function () {
+            context.traversty = old
+            return this
+          }
+
+          return t
+        }())
+ 
+    return traversty
+  }));
+
+  provide("traversty", module.exports);
+
+  /*global ender:true*/
+
+  (function ($) {
+    var t = require('traversty')
+      , integrated = false
+      , integrate = function (meth) {
+          // this crazyness is for lazy initialisation because we can't be guaranteed
+          // that a selector engine has been installed *before* traversty in an ender build
+          var fn = function (self, selector, index) {
+              if (!integrated) {
+                try {
+                  t.setSelectorEngine($)
+                } catch (ex) { } // ignore exception, we may have an ender build with no selector engine
+                integrated = true
+              }
+              fn = meth == 'is'
+                ? function (self, slfn) {
+                    return t(self)[meth](slfn) // boolean
+                  }
+                : function (self, selector, index) {
+                    return $(t(self)[meth](selector, index)) // collection
+                  }
+              return fn(self, selector, index)
+            }
+          return function (selector, index) { return fn(this, selector, index) }
+        }
+      , methods = 'up down next previous prev parents closest siblings children first last eq slice filter not is has'.split(' ')
+      , b = {}, i = methods.length
+
+    // does this build have an .is()? if so, shift it to _is() for traversty to use and
+    // allow us to integrate a new is(), wrapped around it
+    if ($.fn.is) $.fn._is = $.fn.is
+    while (--i >= 0) b[methods[i]] = integrate(methods[i])
+    $.ender(b, true)
+    $.fn.is.__ignore = true
+  }(ender))
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
   /*global provide:true,ender:true*/
   // make a fake `ender` that can do some things slightly different
   !(function ($) {
     var faker = function (selector) {
           return selector === null || selector === '#' ? $([]) : $.apply(this, arguments)
         }
-      , hasComputedStyle = document.defaultView && document.defaultView.getComputedStyle
+      , hasNewBean = !!require('bean').on
       , _$map = $.fn.map
       , _$on = $.fn.on
       , _$trigger = $.fn.trigger
-      , _$height = $.fn.height
-      , _$width = $.fn.width
       , _$data = $.fn.data
       , p
 
@@ -2384,7 +3348,7 @@
 
     // $.camelCase
     faker.camelCase = function (s) {
-      return s.replace(/-([a-z]|[0-9])/ig, function(s, c) { return (c + '').toUpperCase() })
+      return s.replace(/-([a-z]|[0-9])/ig, function (s, c) { return (c + '').toUpperCase() })
     }
     // $.extend(dst, src1, src2...)
     // simple shallow copy
@@ -2417,7 +3381,7 @@
       return function () { return fn.apply(ctx, arguments) }
     }
     // simplified version of jQuery's $.grep
-    faker.grep = function(elems, callback) {
+    faker.grep = function (elems, callback) {
       var i = 0, l = elems.length, ret = []
       for (; i < l; i++) {
         if (!!callback(elems[i], i))
@@ -2425,6 +3389,16 @@
       }
       return ret;
     }
+    // no index arg needed just yet
+    faker.inArray = Array.prototype.indexOf
+      ? function (el, arr) {
+          return Array.prototype.indexOf.call(arr, el)
+        }
+      : function (el, arr) {
+          for (var i = 0; i < arr.length; i++)
+            if (arr[i] === el) return i
+          return -1
+        }
 
     // this is just nasty... Bootstrap uses $.Event(foo) so it can track state, we can't do that
     // with Bean but we need to pass Bean a string for trigger()
@@ -2436,46 +3410,27 @@
     // also the explicit rejection of null values
     $.fn.map = function (fn) {
       if (!fn.length) { // no args
-        return $(_$map.call(this, function(e) { return fn.call(e) }, function (e) { return e != null }))
+        return $(_$map.call(this, function (e) { return fn.call(e) }, function (e) { return e != null }))
       }
       return $(_$map.apply(this, arguments))
     }
     // fix $().on to handle jQuery style arguments
     $.fn.on = function () {
+      // 'data' argument, can't use it, perhaps pass it as last arg?
       if (arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] != 'string')
         return $.fn.bind.call(this, arguments[0], arguments[2])
-      else if (arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] == 'string')
+      // this argument switch only needs to happen for old Bean
+      else if (!hasNewBean && arguments.length == 3 && typeof arguments[2] == 'function' && typeof arguments[1] == 'string')
         return $.fn.bind.call(this, arguments[1], arguments[0], arguments[2])
       return _$on.apply(this, arguments)
     }
     // don't handle $().trigger({}) (object parameters)
     $.fn.trigger = function () {
-      return typeof arguments[0] == 'string' ? _$trigger.apply(this, arguments) : this
-    }
-    // fix up height() and width() call to use computedStyle where available
-    var hwfn = function(_$fn, type) {
-      return function () {
-        if (arguments.length || !this.length)
-          return _$fn.apply(this, arguments) // normal call
-
-        if (this[0] === window) {
-          return window.document.documentElement['client' + (name == 'height' ? 'Height' : 'Width')]
-        }
-
-        if (hasComputedStyle) {
-          var computed = document.defaultView.getComputedStyle(this[0], '')
-          if (computed)
-            return computed.getPropertyValue(type)
-        }
-
-        return _$fn.apply(this)
-      }
-    }
-    $.fn.height = hwfn(_$height, 'height')
-    $.fn.width = hwfn(_$width, 'width')
-    // a prev() alias for previous()
-    $.fn.prev = function () {
-      return $.fn.previous.apply(this, arguments)
+      if (typeof arguments[0] == 'string')
+        return _$trigger.apply(this, arguments)
+      if (typeof arguments[0] == 'object' && typeof arguments[0].type == 'string')
+        return _$trigger.call(this, arguments[0].type)
+      return this
     }
     // fix $().data() to handle a JSON array for typeahead's "source"
     $.fn.data = function () {
@@ -2498,8 +3453,9 @@
     }
     // for carousel.to()
     if (!$.fn.index) {
+      //TODO: support collections of elements for dropdown.js, move implementation to Traversty
       $.fn.index = function (el) {
-        if (el && (!!el.nodeType || !!(el = el[0]).nodeType)) {
+        if (el && (!!el.nodeType || (!!(el = el[0]) && !!el.nodeType))) {
           for (var i = 0, l = this.length; i < l; i++) {
             if (this[i] === el) return i
           }
@@ -2539,7 +3495,7 @@
       }
     }
     $.fn.offsetParent = function () {
-      return $(this.map(function() {
+      return $(this.map(function () {
         var offsetParent = this.offsetParent || document.body
         while (offsetParent && (!rroot.test(offsetParent.nodeName) && $(offsetParent).css("position") === "static")) {
           offsetParent = offsetParent.offsetParent
@@ -2548,12 +3504,13 @@
       }))
     }
 
-    if (typeof module !== 'undefined') module.exports = faker
-    else if (typeof provide !== 'undefined') provide('ender-bootstrap-base', faker)
+    // if (typeof module !== 'undefined') module.exports = faker
+    if (typeof provide !== 'undefined') provide('ender-bootstrap-base-faker', faker)
     // else, where are we??
 
 
   }(ender))
+
   provide("ender-bootstrap-base", module.exports);
   $.ender(module.exports);
 }());
@@ -2563,7 +3520,7 @@
   var module = { exports: {} }, exports = module.exports;
 
   /* ===================================================
-   * bootstrap-transition.js v2.0.3
+   * bootstrap-transition.js v2.2.1
    * http://twitter.github.com/bootstrap/javascript.html#transitions
    * ===================================================
    * Copyright 2012 Twitter, Inc.
@@ -2584,13 +3541,13 @@
 
   !function ($) {
 
+    "use strict"; // jshint ;_;
+
+
+    /* CSS TRANSITION SUPPORT (http://www.modernizr.com/)
+     * ======================================================= */
+
     $.domReady(function () {
-
-      "use strict"; // jshint ;_;
-
-
-      /* CSS TRANSITION SUPPORT (http://www.modernizr.com/)
-       * ======================================================= */
 
       $.support.transition = (function () {
 
@@ -2600,8 +3557,7 @@
             , transEndEventNames = {
                  'WebkitTransition' : 'webkitTransitionEnd'
               ,  'MozTransition'    : 'transitionend'
-              ,  'OTransition'      : 'oTransitionEnd'
-              ,  'msTransition'     : 'MSTransitionEnd'
+              ,  'OTransition'      : 'oTransitionEnd otransitionend'
               ,  'transition'       : 'transitionend'
               }
             , name
@@ -2621,7 +3577,7 @@
       })()
 
     })
-  }(require('ender-bootstrap-base'))
+  }(require('ender-bootstrap-base-faker'))
   provide("ender-bootstrap-transition", module.exports);
   $.ender(module.exports);
 }());
@@ -2630,1658 +3586,8 @@
 
   var module = { exports: {} }, exports = module.exports;
 
-  /* =============================================================
-   * bootstrap-typeahead.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#typeahead
-   * =============================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ============================================================ */
-
-
-  !function($){
-
-    "use strict"; // jshint ;_;
-
-
-   /* TYPEAHEAD PUBLIC CLASS DEFINITION
-    * ================================= */
-
-    var Typeahead = function (element, options) {
-      this.$element = $(element)
-      this.options = $.extend({}, $.fn.typeahead.defaults, options)
-      this.matcher = this.options.matcher || this.matcher
-      this.sorter = this.options.sorter || this.sorter
-      this.highlighter = this.options.highlighter || this.highlighter
-      this.updater = this.options.updater || this.updater
-      this.$menu = $(this.options.menu).appendTo('body')
-      this.source = this.options.source
-      this.shown = false
-      this.listen()
-    }
-
-    Typeahead.prototype = {
-
-      constructor: Typeahead
-
-    , select: function () {
-        var val = this.$menu.find('.active').attr('data-value')
-        this.$element
-          .val(this.updater(val))
-          .change()
-        return this.hide()
-      }
-
-    , updater: function (item) {
-        return item
-      }
-
-    , show: function () {
-        var pos = $.extend({}, this.$element.offset(), {
-          height: this.$element[0].offsetHeight
-        })
-
-        this.$menu.css({
-          top: pos.top + pos.height
-        , left: pos.left
-        })
-
-        this.$menu.show('block')
-        this.shown = true
-        return this
-      }
-
-    , hide: function () {
-        this.$menu.hide()
-        this.shown = false
-        return this
-      }
-
-    , lookup: function (event) {
-        var that = this
-          , items
-          , q
-
-        this.query = this.$element.val()
-
-        if (!this.query) {
-          return this.shown ? this.hide() : this
-        }
-
-        items = $.grep(this.source, function (item) {
-          return that.matcher(item)
-        })
-
-        items = this.sorter(items)
-
-        if (!items.length) {
-          return this.shown ? this.hide() : this
-        }
-
-        return this.render(items.slice(0, this.options.items)).show()
-      }
-
-    , matcher: function (item) {
-        return ~item.toLowerCase().indexOf(this.query.toLowerCase())
-      }
-
-    , sorter: function (items) {
-        var beginswith = []
-          , caseSensitive = []
-          , caseInsensitive = []
-          , item
-
-        while (item = items.shift()) {
-          if (!item.toLowerCase().indexOf(this.query.toLowerCase())) beginswith.push(item)
-          else if (~item.indexOf(this.query)) caseSensitive.push(item)
-          else caseInsensitive.push(item)
-        }
-
-        return beginswith.concat(caseSensitive, caseInsensitive)
-      }
-
-    , highlighter: function (item) {
-        var query = this.query.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&')
-        return item.replace(new RegExp('(' + query + ')', 'ig'), function ($1, match) {
-          return '<strong>' + match + '</strong>'
-        })
-      }
-
-    , render: function (items) {
-        var that = this
-
-        items = $(items).map(function (item, i) {
-          i = $(that.options.item).attr('data-value', item)
-          i.find('a').html(that.highlighter(item))
-          return i[0]
-        })
-
-        $(items).first().addClass('active')
-        this.$menu.empty().append(items)
-        return this
-      }
-
-    , next: function (event) {
-        var active = this.$menu.find('.active').removeClass('active')
-          , next = active.next()
-
-        if (!next.length) {
-          next = $(this.$menu.find('li')[0])
-        }
-
-        next.addClass('active')
-      }
-
-    , prev: function (event) {
-        var active = this.$menu.find('.active').removeClass('active')
-          , prev = active.prev()
-
-        if (!prev.length) {
-          prev = this.$menu.find('li').last()
-        }
-
-        prev.addClass('active')
-      }
-
-    , listen: function () {
-        this.$element
-          .on('blur',     $.proxy(this.blur, this))
-          .on('keypress', $.proxy(this.keypress, this))
-          .on('keyup',    $.proxy(this.keyup, this))
-
-        if ($.browser.webkit || $.browser.msie) {
-          this.$element.on('keydown', $.proxy(this.keypress, this))
-        }
-
-        this.$menu
-          .on('click', $.proxy(this.click, this))
-          .on('mouseenter', 'li', $.proxy(this.mouseenter, this))
-      }
-
-    , keyup: function (e) {
-        switch(e.keyCode) {
-          case 40: // down arrow
-          case 38: // up arrow
-            break
-
-          case 9: // tab
-          case 13: // enter
-            if (!this.shown) return
-            this.select()
-            break
-
-          case 27: // escape
-            if (!this.shown) return
-            this.hide()
-            break
-
-          default:
-            this.lookup()
-        }
-
-        e.stopPropagation()
-        e.preventDefault()
-    }
-
-    , keypress: function (e) {
-        if (!this.shown) return
-
-        switch(e.keyCode) {
-          case 9: // tab
-          case 13: // enter
-          case 27: // escape
-            e.preventDefault()
-            break
-
-          case 38: // up arrow
-            if (e.type != 'keydown') break
-            e.preventDefault()
-            this.prev()
-            break
-
-          case 40: // down arrow
-            if (e.type != 'keydown') break
-            e.preventDefault()
-            this.next()
-            break
-        }
-
-        e.stopPropagation()
-      }
-
-    , blur: function (e) {
-        var that = this
-        setTimeout(function () { that.hide() }, 150)
-      }
-
-    , click: function (e) {
-        e.stopPropagation()
-        e.preventDefault()
-        this.select()
-      }
-
-    , mouseenter: function (e) {
-        this.$menu.find('.active').removeClass('active')
-        $(e.currentTarget).addClass('active')
-      }
-
-    }
-
-
-    /* TYPEAHEAD PLUGIN DEFINITION
-     * =========================== */
-
-    $.fn.typeahead = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('typeahead')
-          , options = typeof option == 'object' && option
-        if (!data) $this.data('typeahead', (data = new Typeahead(this, options)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.typeahead.defaults = {
-      source: []
-    , items: 8
-    , menu: '<ul class="typeahead dropdown-menu"></ul>'
-    , item: '<li><a href="#"></a></li>'
-    }
-
-    $.fn.typeahead.Constructor = Typeahead
-
-
-   /* TYPEAHEAD DATA-API
-    * ================== */
-
-    $.domReady(function () {
-      $('[data-provide="typeahead"]').on('focus.typeahead.data-api', function (e) {
-        var $this = $(this)
-        if ($this.data('typeahead')) return
-        e.preventDefault()
-        $this.typeahead($this.data())
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-typeahead", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* ===========================================================
-   * bootstrap-tooltip.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#tooltips
-   * Inspired by the original jQuery.tipsy by Jason Frame
-   * ===========================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ========================================================== */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* TOOLTIP PUBLIC CLASS DEFINITION
-    * =============================== */
-
-    var Tooltip = function (element, options) {
-      this.init('tooltip', element, options)
-    }
-
-    Tooltip.prototype = {
-
-      constructor: Tooltip
-
-    , init: function (type, element, options) {
-        var eventIn
-          , eventOut
-
-        this.type = type
-        this.$element = $(element)
-        this.options = this.getOptions(options)
-        this.enabled = true
-
-        if (this.options.trigger != 'manual') {
-          eventIn  = this.options.trigger == 'hover' ? 'mouseenter' : 'focus'
-          eventOut = this.options.trigger == 'hover' ? 'mouseleave' : 'blur'
-          this.$element.on(eventIn, this.options.selector, $.proxy(this.enter, this))
-          this.$element.on(eventOut, this.options.selector, $.proxy(this.leave, this))
-        }
-
-        this.options.selector ?
-          (this._options = $.extend({}, this.options, { trigger: 'manual', selector: '' })) :
-          this.fixTitle()
-      }
-
-    , getOptions: function (options) {
-        options = $.extend({}, $.fn[this.type].defaults, options, this.$element.data())
-
-        if (options.delay && typeof options.delay == 'number') {
-          options.delay = {
-            show: options.delay
-          , hide: options.delay
-          }
-        }
-
-        return options
-      }
-
-    , enter: function (e) {
-        var self = $(e.currentTarget)[this.type](this._options).data(this.type)
-
-        if (!self.options.delay || !self.options.delay.show) return self.show()
-
-        clearTimeout(this.timeout)
-        self.hoverState = 'in'
-        this.timeout = setTimeout(function() {
-          if (self.hoverState == 'in') self.show()
-        }, self.options.delay.show)
-      }
-
-    , leave: function (e) {
-        var self = $(e.currentTarget)[this.type](this._options).data(this.type)
-
-        if (!self.options.delay || !self.options.delay.hide) return self.hide()
-
-        clearTimeout(this.timeout)
-        self.hoverState = 'out'
-        this.timeout = setTimeout(function() {
-          if (self.hoverState == 'out') self.hide()
-        }, self.options.delay.hide)
-      }
-
-    , show: function () {
-        var $tip
-          , inside
-          , pos
-          , actualWidth
-          , actualHeight
-          , placement
-          , tp
-
-        if (this.hasContent() && this.enabled) {
-          $tip = this.tip()
-          this.setContent()
-
-          if (this.options.animation) {
-            $tip.addClass('fade')
-          }
-
-          placement = typeof this.options.placement == 'function' ?
-            this.options.placement.call(this, $tip[0], this.$element[0]) :
-            this.options.placement
-
-          inside = /in/.test(placement)
-
-          $tip
-            .remove()
-            .css({ top: 0, left: 0, display: 'block' })
-            .appendTo(inside ? this.$element : document.body)
-
-          pos = this.getPosition(inside)
-
-          actualWidth = $tip[0].offsetWidth
-          actualHeight = $tip[0].offsetHeight
-
-          switch (inside ? placement.split(' ')[1] : placement) {
-            case 'bottom':
-              tp = {top: pos.top + pos.height, left: pos.left + pos.width / 2 - actualWidth / 2}
-              break
-            case 'top':
-              tp = {top: pos.top - actualHeight, left: pos.left + pos.width / 2 - actualWidth / 2}
-              break
-            case 'left':
-              tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left - actualWidth}
-              break
-            case 'right':
-              tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left + pos.width}
-              break
-          }
-
-          $tip
-            .css(tp)
-            .addClass(placement)
-            .addClass('in')
-        }
-      }
-
-    , isHTML: function(text) {
-        // html string detection logic adapted from jQuery
-        return typeof text != 'string'
-          || ( text.charAt(0) === "<"
-            && text.charAt( text.length - 1 ) === ">"
-            && text.length >= 3
-          ) || /^(?:[^<]*<[\w\W]+>[^>]*$)/.exec(text)
-      }
-
-    , setContent: function () {
-        var $tip = this.tip()
-          , title = this.getTitle()
-
-        $tip.find('.tooltip-inner')[this.isHTML(title) ? 'html' : 'text'](title)
-        $tip.removeClass('fade in top bottom left right')
-      }
-
-    , hide: function () {
-        var that = this
-          , $tip = this.tip()
-
-        $tip.removeClass('in')
-
-        function removeWithAnimation() {
-          var timeout = setTimeout(function () {
-            $tip.off($.support.transition.end).remove()
-          }, 500)
-
-          $tip.one($.support.transition.end, function () {
-            clearTimeout(timeout)
-            $tip.remove()
-          })
-        }
-
-        $.support.transition && this.$tip.hasClass('fade') ?
-          removeWithAnimation() :
-          $tip.remove()
-      }
-
-    , fixTitle: function () {
-        var $e = this.$element
-        if ($e.attr('title') || typeof($e.attr('data-original-title')) != 'string') {
-          $e.attr('data-original-title', $e.attr('title') || '').removeAttr('title')
-        }
-      }
-
-    , hasContent: function () {
-        return this.getTitle()
-      }
-
-    , getPosition: function (inside) {
-        return $.extend({}, (inside ? {top: 0, left: 0} : this.$element.offset()), {
-          width: this.$element[0].offsetWidth
-        , height: this.$element[0].offsetHeight
-        })
-      }
-
-    , getTitle: function () {
-        var title
-          , $e = this.$element
-          , o = this.options
-
-        title = $e.attr('data-original-title')
-          || (typeof o.title == 'function' ? o.title.call($e[0]) :  o.title)
-
-        return title
-      }
-
-    , tip: function () {
-        return this.$tip = this.$tip || $(this.options.template)
-      }
-
-    , validate: function () {
-        if (!this.$element[0].parentNode) {
-          this.hide()
-          this.$element = null
-          this.options = null
-        }
-      }
-
-    , enable: function () {
-        this.enabled = true
-      }
-
-    , disable: function () {
-        this.enabled = false
-      }
-
-    , toggleEnabled: function () {
-        this.enabled = !this.enabled
-      }
-
-    , toggle: function () {
-        this[this.tip().hasClass('in') ? 'hide' : 'show']()
-      }
-
-    }
-
-
-   /* TOOLTIP PLUGIN DEFINITION
-    * ========================= */
-
-    $.fn.tooltip = function ( option ) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('tooltip')
-          , options = typeof option == 'object' && option
-        if (!data) $this.data('tooltip', (data = new Tooltip(this, options)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.tooltip.Constructor = Tooltip
-
-    $.fn.tooltip.defaults = {
-      animation: true
-    , placement: 'top'
-    , selector: false
-    , template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>'
-    , trigger: 'hover'
-    , title: ''
-    , delay: 0
-    }
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-tooltip", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* ========================================================
-   * bootstrap-tab.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#tabs
-   * ========================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ======================================================== */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* TAB CLASS DEFINITION
-    * ==================== */
-
-    var Tab = function ( element ) {
-      this.element = $(element)
-    }
-
-    Tab.prototype = {
-
-      constructor: Tab
-
-    , show: function () {
-        var $this = this.element
-          , $ul = $this.closest('ul:not(.dropdown-menu)')
-          , selector = $this.attr('data-target')
-          , previous
-          , $target
-          , e
-
-        if (!selector) {
-          selector = $this.attr('href')
-          selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
-        }
-
-        if ( $this.parent('li').hasClass('active') ) return
-
-        previous = $ul.find('.active a').last()[0]
-
-        e = $.Event('show', {
-          relatedTarget: previous
-        })
-
-        $this.trigger(e)
-
-        if (false) return
-
-        $target = $(selector)
-
-        this.activate($this.parent('li'), $ul)
-        this.activate($target, $target.parent(), function () {
-          $this.trigger({
-            type: 'shown'
-          , relatedTarget: previous
-          })
-        })
-      }
-
-    , activate: function ( element, container, callback) {
-        var $active = container.find('> .active')
-          , transition = callback
-              && $.support.transition
-              && $active.hasClass('fade')
-
-        function next() {
-          $active
-            .removeClass('active')
-            .find('> .dropdown-menu > .active')
-            .removeClass('active')
-
-          element.addClass('active')
-
-          if (transition) {
-            element[0].offsetWidth // reflow for transition
-            element.addClass('in')
-          } else {
-            element.removeClass('fade')
-          }
-
-          if ( element.parent('.dropdown-menu') ) {
-            element.closest('li.dropdown').addClass('active')
-          }
-
-          callback && callback()
-        }
-
-        transition ?
-          $active.one($.support.transition.end, next) :
-          next()
-
-        $active.removeClass('in')
-      }
-    }
-
-
-   /* TAB PLUGIN DEFINITION
-    * ===================== */
-
-    $.fn.tab = function ( option ) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('tab')
-        if (!data) $this.data('tab', (data = new Tab(this)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.tab.Constructor = Tab
-
-
-   /* TAB DATA-API
-    * ============ */
-
-    $.domReady(function () {
-      $('body').on('click.tab.data-api', '[data-toggle="tab"], [data-toggle="pill"]', function (e) {
-        e.preventDefault()
-        $(this).tab('show')
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-tab", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* =============================================================
-   * bootstrap-scrollspy.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#scrollspy
-   * =============================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ============================================================== */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-    /* SCROLLSPY CLASS DEFINITION
-     * ========================== */
-
-    function ScrollSpy( element, options) {
-      var process = $.proxy(this.process, this)
-        , $element = $(element).is('body') ? $(window) : $(element)
-        , href
-      this.options = $.extend({}, $.fn.scrollspy.defaults, options)
-      this.$scrollElement = $element.on('scroll.scroll.data-api', process)
-      this.selector = (this.options.target
-        || ((href = $(element).attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
-        || '') + ' .nav li > a'
-      this.$body = $('body')
-      this.refresh()
-      this.process()
-    }
-
-    ScrollSpy.prototype = {
-
-        constructor: ScrollSpy
-
-      , refresh: function () {
-          var self = this
-            , $targets
-
-          this.offsets = []
-          this.targets = []
-
-          $targets = this.$body
-            .find(this.selector)
-            .map(function () {
-              var $el = $(this)
-                , href = $el.data('target') || $el.attr('href')
-                , $href = /^#\w/.test(href) && $(href)
-              return ( $href
-                && href.length
-                && [ $href.position().top, href ] ) || null
-            })
-            .sort(function (a, b) { return a[0] - b[0] })
-            .each(function () {
-              self.offsets.push(this[0])
-              self.targets.push(this[1])
-            })
-        }
-
-      , process: function () {
-          var scrollTop = this.$scrollElement.scrollTop() + this.options.offset
-            , scrollHeight = this.$scrollElement[0].scrollHeight || this.$body[0].scrollHeight
-            , maxScroll = scrollHeight - this.$scrollElement.height()
-            , offsets = this.offsets
-            , targets = this.targets
-            , activeTarget = this.activeTarget
-            , i
-
-          if (scrollTop >= maxScroll) {
-            return activeTarget != (i = targets[targets.length-1])
-              && this.activate ( i )
-          }
-
-          for (i = offsets.length; i--;) {
-            activeTarget != targets[i]
-              && scrollTop >= offsets[i]
-              && (!offsets[i + 1] || scrollTop <= offsets[i + 1])
-              && this.activate( targets[i] )
-          }
-        }
-
-      , activate: function (target) {
-          var active
-            , selector
-
-          this.activeTarget = target
-
-          $(this.selector)
-            .parent('.active')
-            .removeClass('active')
-
-          selector = this.selector
-            + '[data-target="' + target + '"],'
-            + this.selector + '[href="' + target + '"]'
-
-          active = $(selector)
-            .parent('li')
-            .addClass('active')
-
-          if (active.parent('.dropdown-menu'))  {
-            active = active.closest('li.dropdown').addClass('active')
-          }
-
-          active.trigger('activate')
-        }
-
-    }
-
-
-   /* SCROLLSPY PLUGIN DEFINITION
-    * =========================== */
-
-    $.fn.scrollspy = function ( option ) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('scrollspy')
-          , options = typeof option == 'object' && option
-        if (!data) $this.data('scrollspy', (data = new ScrollSpy(this, options)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.scrollspy.Constructor = ScrollSpy
-
-    $.fn.scrollspy.defaults = {
-      offset: 10
-    }
-
-
-   /* SCROLLSPY DATA-API
-    * ================== */
-
-    $.domReady(function () {
-      $('[data-spy="scroll"]').each(function () {
-        var $spy = $(this)
-        $spy.scrollspy($spy.data())
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-scrollspy", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* ===========================================================
-   * bootstrap-popover.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#popovers
-   * ===========================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * =========================================================== */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* POPOVER PUBLIC CLASS DEFINITION
-    * =============================== */
-
-    var Popover = function ( element, options ) {
-      this.init('popover', element, options)
-    }
-
-
-    /* NOTE: POPOVER EXTENDS BOOTSTRAP-TOOLTIP.js
-       ========================================== */
-
-    Popover.prototype = $.extend({}, $.fn.tooltip.Constructor.prototype, {
-
-      constructor: Popover
-
-    , setContent: function () {
-        var $tip = this.tip()
-          , title = this.getTitle()
-          , content = this.getContent()
-
-        $tip.find('.popover-title')[this.isHTML(title) ? 'html' : 'text'](title)
-        $tip.find('.popover-content > *')[this.isHTML(content) ? 'html' : 'text'](content)
-
-        $tip.removeClass('fade top bottom left right in')
-      }
-
-    , hasContent: function () {
-        return this.getTitle() || this.getContent()
-      }
-
-    , getContent: function () {
-        var content
-          , $e = this.$element
-          , o = this.options
-
-        content = $e.attr('data-content')
-          || (typeof o.content == 'function' ? o.content.call($e[0]) :  o.content)
-
-        return content
-      }
-
-    , tip: function () {
-        if (!this.$tip) {
-          this.$tip = $(this.options.template)
-        }
-        return this.$tip
-      }
-
-    })
-
-
-   /* POPOVER PLUGIN DEFINITION
-    * ======================= */
-
-    $.fn.popover = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('popover')
-          , options = typeof option == 'object' && option
-        if (!data) $this.data('popover', (data = new Popover(this, options)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.popover.Constructor = Popover
-
-    $.fn.popover.defaults = $.extend({} , $.fn.tooltip.defaults, {
-      placement: 'right'
-    , content: ''
-    , template: '<div class="popover"><div class="arrow"></div><div class="popover-inner"><h3 class="popover-title"></h3><div class="popover-content"><p></p></div></div></div>'
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-popover", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* =========================================================
-   * bootstrap-modal.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#modals
-   * =========================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ========================================================= */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* MODAL CLASS DEFINITION
-    * ====================== */
-
-    var Modal = function (content, options) {
-      this.options = options
-      this.$element = $(content)
-        .delegate('[data-dismiss="modal"]', 'click.dismiss.modal', $.proxy(this.hide, this))
-    }
-
-    Modal.prototype = {
-
-        constructor: Modal
-
-      , toggle: function () {
-          return this[!this.isShown ? 'show' : 'hide']()
-        }
-
-      , show: function () {
-          var that = this
-            , e = $.Event('show')
-
-          this.$element.trigger(e)
-
-          if (this.isShown || false) return
-
-          $('body').addClass('modal-open')
-
-          this.isShown = true
-
-          escape.call(this)
-          backdrop.call(this, function () {
-            var transition = $.support.transition && that.$element.hasClass('fade')
-
-            if (!that.$element.parent().length) {
-              that.$element.appendTo(document.body) //don't move modals dom position
-            }
-
-            that.$element.show('block')
-
-            if (transition) {
-              that.$element[0].offsetWidth // force reflow
-            }
-
-            that.$element.addClass('in')
-
-            transition ?
-              that.$element.one($.support.transition.end, function () { that.$element.trigger('shown') }) :
-              that.$element.trigger('shown')
-
-          })
-        }
-
-      , hide: function (e) {
-          e && e.preventDefault()
-
-          var that = this
-
-          e = $.Event('hide')
-
-          this.$element.trigger(e)
-
-          if (!this.isShown || false) return
-
-          this.isShown = false
-
-          $('body').removeClass('modal-open')
-
-          escape.call(this)
-
-          this.$element.removeClass('in')
-
-          $.support.transition && this.$element.hasClass('fade') ?
-            hideWithTransition.call(this) :
-            hideModal.call(this)
-        }
-
-    }
-
-
-   /* MODAL PRIVATE METHODS
-    * ===================== */
-
-    function hideWithTransition() {
-      var that = this
-        , timeout = setTimeout(function () {
-            that.$element.off($.support.transition.end)
-            hideModal.call(that)
-          }, 500)
-
-      this.$element.one($.support.transition.end, function () {
-        clearTimeout(timeout)
-        hideModal.call(that)
-      })
-    }
-
-    function hideModal(that) {
-      this.$element
-        .hide()
-        .trigger('hidden')
-
-      backdrop.call(this)
-    }
-
-    function backdrop(callback) {
-      var that = this
-        , animate = this.$element.hasClass('fade') ? 'fade' : ''
-
-      if (this.isShown && this.options.backdrop) {
-        var doAnimate = $.support.transition && animate
-
-        this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
-          .appendTo(document.body)
-
-        if (this.options.backdrop != 'static') {
-          this.$backdrop.click($.proxy(this.hide, this))
-        }
-
-        if (doAnimate) this.$backdrop[0].offsetWidth // force reflow
-
-        this.$backdrop.addClass('in')
-
-        doAnimate ?
-          this.$backdrop.one($.support.transition.end, callback) :
-          callback()
-
-      } else if (!this.isShown && this.$backdrop) {
-        this.$backdrop.removeClass('in')
-
-        $.support.transition && this.$element.hasClass('fade')?
-          this.$backdrop.one($.support.transition.end, $.proxy(removeBackdrop, this)) :
-          removeBackdrop.call(this)
-
-      } else if (callback) {
-        callback()
-      }
-    }
-
-    function removeBackdrop() {
-      this.$backdrop.remove()
-      this.$backdrop = null
-    }
-
-    function escape() {
-      var that = this
-      if (this.isShown && this.options.keyboard) {
-        $(document).on('keyup.dismiss.modal', function ( e ) {
-          e.which == 27 && that.hide()
-        })
-      } else if (!this.isShown) {
-        $(document).off('keyup.dismiss.modal')
-      }
-    }
-
-
-   /* MODAL PLUGIN DEFINITION
-    * ======================= */
-
-    $.fn.modal = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('modal')
-          , options = $.extend({}, $.fn.modal.defaults, $this.data(), typeof option == 'object' && option)
-        if (!data) $this.data('modal', (data = new Modal(this, options)))
-        if (typeof option == 'string') data[option]()
-        else if (options.show) data.show()
-      })
-    }
-
-    $.fn.modal.defaults = {
-        backdrop: true
-      , keyboard: true
-      , show: true
-    }
-
-    $.fn.modal.Constructor = Modal
-
-
-   /* MODAL DATA-API
-    * ============== */
-
-    $.domReady(function () {
-      $('body').on('click.modal.data-api', '[data-toggle="modal"]', function ( e ) {
-        var $this = $(this), href
-          , $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
-          , option = $target.data('modal') ? 'toggle' : $.extend({}, $target.data(), $this.data())
-
-        e.preventDefault()
-        $target.modal(option)
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-modal", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* ============================================================
-   * bootstrap-dropdown.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#dropdowns
-   * ============================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ============================================================ */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* DROPDOWN CLASS DEFINITION
-    * ========================= */
-
-    var toggle = '[data-toggle="dropdown"]'
-      , Dropdown = function (element) {
-          var $el = $(element).on('click.dropdown.data-api', this.toggle)
-          $('html').on('click.dropdown.data-api', function () {
-            $el.parent().removeClass('open')
-          })
-        }
-
-    Dropdown.prototype = {
-
-      constructor: Dropdown
-
-    , toggle: function (e) {
-        var $this = $(this)
-          , $parent
-          , selector
-          , isActive
-
-        if ($this.is('.disabled')) return
-
-        selector = $this.attr('data-target')
-
-        if (!selector) {
-          selector = $this.attr('href')
-          selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
-        }
-
-        $parent = $(selector)
-        $parent.length || ($parent = $this.parent())
-
-        isActive = $parent.hasClass('open')
-
-        clearMenus()
-
-        if (!isActive) $parent.toggleClass('open')
-
-        e.stop()
-      }
-
-    }
-
-    function clearMenus() {
-      $(toggle).parent().removeClass('open')
-    }
-
-
-    /* DROPDOWN PLUGIN DEFINITION
-     * ========================== */
-
-    $.fn.dropdown = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('dropdown')
-        if (!data) $this.data('dropdown', (data = new Dropdown(this)))
-        if (typeof option == 'string') data[option].call($this)
-      })
-    }
-
-    $.fn.dropdown.Constructor = Dropdown
-
-
-    /* APPLY TO STANDARD DROPDOWN ELEMENTS
-     * =================================== */
-
-    $.domReady(function () {
-      $('html').on('click.dropdown.data-api', clearMenus)
-      $('body')
-        .on('click.dropdown', '.dropdown form', function (e) { e.stopPropagation() })
-        .on('click.dropdown.data-api', toggle, Dropdown.prototype.toggle)
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-dropdown", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* =============================================================
-   * bootstrap-collapse.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#collapse
-   * =============================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ============================================================ */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* COLLAPSE PUBLIC CLASS DEFINITION
-    * ================================ */
-
-    var Collapse = function (element, options) {
-      this.$element = $(element)
-      this.options = $.extend({}, $.fn.collapse.defaults, options)
-
-      if (this.options.parent) {
-        this.$parent = $(this.options.parent)
-      }
-
-      this.options.toggle && this.toggle()
-    }
-
-    Collapse.prototype = {
-
-      constructor: Collapse
-
-    , dimension: function () {
-        var hasWidth = this.$element.hasClass('width')
-        return hasWidth ? 'width' : 'height'
-      }
-
-    , show: function () {
-        var dimension
-          , scroll
-          , actives
-          , hasData
-
-        if (this.transitioning) return
-
-        dimension = this.dimension()
-        scroll = $.camelCase(['scroll', dimension].join('-'))
-        actives = this.$parent && this.$parent.find('> .accordion-group > .in')
-
-        if (actives && actives.length) {
-          hasData = actives.data('collapse')
-          if (hasData && hasData.transitioning) return
-          actives.collapse('hide')
-          hasData || actives.data('collapse', null)
-        }
-
-        this.$element[dimension](0)
-        this.transition('addClass', $.Event('show'), 'shown')
-        this.$element[dimension](this.$element[0][scroll])
-      }
-
-    , hide: function () {
-        var dimension
-        if (this.transitioning) return
-        dimension = this.dimension()
-        this.reset(this.$element[dimension]())
-        this.transition('removeClass', $.Event('hide'), 'hidden')
-        this.$element[dimension](0)
-      }
-
-    , reset: function (size) {
-        var dimension = this.dimension()
-
-        this.$element
-          .removeClass('collapse')
-          [dimension](size || 'auto')
-          [0].offsetWidth
-
-        this.$element[size !== null ? 'addClass' : 'removeClass']('collapse')
-
-        return this
-      }
-
-    , transition: function (method, startEvent, completeEvent) {
-        var that = this
-          , complete = function () {
-              if (startEvent.type == 'show') that.reset()
-              that.transitioning = 0
-              that.$element.trigger(completeEvent)
-            }
-
-        this.$element.trigger(startEvent)
-
-        if (false) return
-
-        this.transitioning = 1
-
-        this.$element[method]('in')
-
-        $.support.transition && this.$element.hasClass('collapse') ?
-          this.$element.one($.support.transition.end, complete) :
-          complete()
-      }
-
-    , toggle: function () {
-        this[this.$element.hasClass('in') ? 'hide' : 'show']()
-      }
-
-    }
-
-
-   /* COLLAPSIBLE PLUGIN DEFINITION
-    * ============================== */
-
-    $.fn.collapse = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('collapse')
-          , options = typeof option == 'object' && option
-        if (!data) $this.data('collapse', (data = new Collapse(this, options)))
-        if (typeof option == 'string') data[option]()
-      })
-    }
-
-    $.fn.collapse.defaults = {
-      toggle: true
-    }
-
-    $.fn.collapse.Constructor = Collapse
-
-
-   /* COLLAPSIBLE DATA-API
-    * ==================== */
-
-    $.domReady(function () {
-      $('body').on('click.collapse.data-api', '[data-toggle=collapse]', function ( e ) {
-        var $this = $(this), href
-          , target = $this.attr('data-target')
-            || e.preventDefault()
-            || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') //strip for ie7
-          , option = $(target).data('collapse') ? 'toggle' : $this.data()
-        $(target).collapse(option)
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-collapse", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
   /* ==========================================================
-   * bootstrap-carousel.js v2.0.3
-   * http://twitter.github.com/bootstrap/javascript.html#carousel
-   * ==========================================================
-   * Copyright 2012 Twitter, Inc.
-   *
-   * Licensed under the Apache License, Version 2.0 (the "License");
-   * you may not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   * http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing, software
-   * distributed under the License is distributed on an "AS IS" BASIS,
-   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   * See the License for the specific language governing permissions and
-   * limitations under the License.
-   * ========================================================== */
-
-
-  !function ($) {
-
-    "use strict"; // jshint ;_;
-
-
-   /* CAROUSEL CLASS DEFINITION
-    * ========================= */
-
-    var Carousel = function (element, options) {
-      this.$element = $(element)
-      this.options = options
-      this.options.slide && this.slide(this.options.slide)
-      this.options.pause == 'hover' && this.$element
-        .on('mouseenter', $.proxy(this.pause, this))
-        .on('mouseleave', $.proxy(this.cycle, this))
-    }
-
-    Carousel.prototype = {
-
-      cycle: function (e) {
-        if (!e) this.paused = false
-        this.options.interval
-          && !this.paused
-          && (this.interval = setInterval($.proxy(this.next, this), this.options.interval))
-        return this
-      }
-
-    , to: function (pos) {
-        var $active = this.$element.find('.active')
-          , children = $active.parent().children()
-          , activePos = children.index($active)
-          , that = this
-
-        if (pos > (children.length - 1) || pos < 0) return
-
-        if (this.sliding) {
-          return this.$element.one('slid', function () {
-            that.to(pos)
-          })
-        }
-
-        if (activePos == pos) {
-          return this.pause().cycle()
-        }
-
-        return this.slide(pos > activePos ? 'next' : 'prev', $(children[pos]))
-      }
-
-    , pause: function (e) {
-        if (!e) this.paused = true
-        clearInterval(this.interval)
-        this.interval = null
-        return this
-      }
-
-    , next: function () {
-        if (this.sliding) return
-        return this.slide('next')
-      }
-
-    , prev: function () {
-        if (this.sliding) return
-        return this.slide('prev')
-      }
-
-    , slide: function (type, next) {
-        var $active = this.$element.find('.active')
-          , $next = next || $active[type]()
-          , isCycling = this.interval
-          , direction = type == 'next' ? 'left' : 'right'
-          , fallback  = type == 'next' ? 'first' : 'last'
-          , that = this
-          , e = $.Event('slide')
-
-        this.sliding = true
-
-        isCycling && this.pause()
-
-        $next = $next.length ? $next : this.$element.find('.item')[fallback]()
-
-        if ($next.hasClass('active')) return
-
-        if ($.support.transition && this.$element.hasClass('slide')) {
-          this.$element.trigger(e)
-          if (false) return
-          $next.addClass(type)
-          $next[0].offsetWidth // force reflow
-          $active.addClass(direction)
-          $next.addClass(direction)
-          this.$element.one($.support.transition.end, function () {
-            $next.removeClass([type, direction].join(' ')).addClass('active')
-            $active.removeClass(['active', direction].join(' '))
-            that.sliding = false
-            setTimeout(function () { that.$element.trigger('slid') }, 0)
-          })
-        } else {
-          this.$element.trigger(e)
-          if (false) return
-          $active.removeClass('active')
-          $next.addClass('active')
-          this.sliding = false
-          this.$element.trigger('slid')
-        }
-
-        isCycling && this.cycle()
-
-        return this
-      }
-
-    }
-
-
-   /* CAROUSEL PLUGIN DEFINITION
-    * ========================== */
-
-    $.fn.carousel = function (option) {
-      return this.each(function () {
-        var $this = $(this)
-          , data = $this.data('carousel')
-          , options = $.extend({}, $.fn.carousel.defaults, typeof option == 'object' && option)
-        if (!data) $this.data('carousel', (data = new Carousel(this, options)))
-        if (typeof option == 'number') data.to(option)
-        else if (typeof option == 'string' || (option = options.slide)) data[option]()
-        else if (options.interval) data.cycle()
-      })
-    }
-
-    $.fn.carousel.defaults = {
-      interval: 5000
-    , pause: 'hover'
-    }
-
-    $.fn.carousel.Constructor = Carousel
-
-
-   /* CAROUSEL DATA-API
-    * ================= */
-
-    $.domReady(function () {
-      $('body').on('click.carousel.data-api', '[data-slide]', function ( e ) {
-        var $this = $(this), href
-          , $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
-          , options = !$target.data('modal') && $.extend({}, $target.data(), $this.data())
-        $target.carousel(options)
-        e.preventDefault()
-      })
-    })
-  }(require('ender-bootstrap-base'))
-  provide("ender-bootstrap-carousel", module.exports);
-  $.ender(module.exports);
-}());
-
-(function () {
-
-  var module = { exports: {} }, exports = module.exports;
-
-  /* ==========================================================
-   * bootstrap-alert.js v2.0.3
+   * bootstrap-alert.js v2.2.1
    * http://twitter.github.com/bootstrap/javascript.html#alerts
    * ==========================================================
    * Copyright 2012 Twitter, Inc.
@@ -4365,10 +3671,8 @@
    /* ALERT DATA-API
     * ============== */
 
-    $.domReady(function () {
-      $('body').on('click.alert.data-api', dismiss, Alert.prototype.close)
-    })
-  }(require('ender-bootstrap-base'))
+    $(document).on('click.alert.data-api', dismiss, Alert.prototype.close)
+  }(require('ender-bootstrap-base-faker'))
   provide("ender-bootstrap-alert", module.exports);
   $.ender(module.exports);
 }());
@@ -4378,7 +3682,7 @@
   var module = { exports: {} }, exports = module.exports;
 
   /* ============================================================
-   * bootstrap-button.js v2.0.3
+   * bootstrap-button.js v2.2.1
    * http://twitter.github.com/bootstrap/javascript.html#buttons
    * ============================================================
    * Copyright 2012 Twitter, Inc.
@@ -4430,7 +3734,7 @@
     }
 
     Button.prototype.toggle = function () {
-      var $parent = this.$element.parent('[data-toggle="buttons-radio"]')
+      var $parent = this.$element.closest('[data-toggle="buttons-radio"]')
 
       $parent && $(this.$element.parent()).data('toggle') == 'buttons-radio' && $parent.find('.active').removeClass('active')
 
@@ -4462,14 +3766,12 @@
    /* BUTTON DATA-API
     * =============== */
 
-    $.domReady(function () {
-      $('body').on('click.button.data-api', '[data-toggle^=button]', function ( e ) {
-        var $btn = $(e.target)
-        if (!$btn.hasClass('btn')) $btn = $btn.closest('.btn')
-        $btn.button('toggle')
-      })
+    $(document).on('click.button.data-api', '[data-toggle^=button]', function (e) {
+      var $btn = $(e.target)
+      if (!$btn.hasClass('btn')) $btn = $btn.closest('.btn')
+      $btn.button('toggle')
     })
-  }(require('ender-bootstrap-base'))
+  }(require('ender-bootstrap-base-faker'))
   provide("ender-bootstrap-button", module.exports);
   $.ender(module.exports);
 }());
@@ -4478,6 +3780,1870 @@
 
   var module = { exports: {} }, exports = module.exports;
 
+  /* ==========================================================
+   * bootstrap-carousel.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#carousel
+   * ==========================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ========================================================== */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* CAROUSEL CLASS DEFINITION
+    * ========================= */
+
+    var Carousel = function (element, options) {
+      this.$element = $(element)
+      this.options = options
+      this.options.slide && this.slide(this.options.slide)
+      this.options.pause == 'hover' && this.$element
+        .on('mouseenter', $.proxy(this.pause, this))
+        .on('mouseleave', $.proxy(this.cycle, this))
+    }
+
+    Carousel.prototype = {
+
+      cycle: function (e) {
+        if (!e) this.paused = false
+        this.options.interval
+          && !this.paused
+          && (this.interval = setInterval($.proxy(this.next, this), this.options.interval))
+        return this
+      }
+
+    , to: function (pos) {
+        var $active = this.$element.find('.item.active')
+          , children = $active.parent().children()
+          , activePos = children.index($active)
+          , that = this
+
+        if (pos > (children.length - 1) || pos < 0) return
+
+        if (this.sliding) {
+          return this.$element.one('slid', function () {
+            that.to(pos)
+          })
+        }
+
+        if (activePos == pos) {
+          return this.pause().cycle()
+        }
+
+        return this.slide(pos > activePos ? 'next' : 'prev', $(children[pos]))
+      }
+
+    , pause: function (e) {
+        if (!e) this.paused = true
+        if (this.$element.find('.next, .prev').length && $.support.transition.end) {
+          this.$element.trigger($.support.transition.end)
+          this.cycle()
+        }
+        clearInterval(this.interval)
+        this.interval = null
+        return this
+      }
+
+    , next: function () {
+        if (this.sliding) return
+        return this.slide('next')
+      }
+
+    , prev: function () {
+        if (this.sliding) return
+        return this.slide('prev')
+      }
+
+    , slide: function (type, next) {
+        var $active = this.$element.find('.item.active')
+          , $next = next || $active[type]()
+          , isCycling = this.interval
+          , direction = type == 'next' ? 'left' : 'right'
+          , fallback  = type == 'next' ? 'first' : 'last'
+          , that = this
+          , e
+
+        this.sliding = true
+
+        isCycling && this.pause()
+
+        $next = $next.length ? $next : this.$element.find('.item')[fallback]()
+
+        e = $.Event('slide', {
+          relatedTarget: $next[0]
+        })
+
+        if ($next.hasClass('active')) return
+
+        if ($.support.transition && this.$element.hasClass('slide')) {
+          this.$element.trigger(e)
+          if (false) return
+          $next.addClass(type)
+          $next[0].offsetWidth // force reflow
+          $active.addClass(direction)
+          $next.addClass(direction)
+          this.$element.one($.support.transition.end, function () {
+            $next.removeClass([type, direction].join(' ')).addClass('active')
+            $active.removeClass(['active', direction].join(' '))
+            that.sliding = false
+            setTimeout(function () { that.$element.trigger('slid') }, 0)
+          })
+        } else {
+          this.$element.trigger(e)
+          if (false) return
+          $active.removeClass('active')
+          $next.addClass('active')
+          this.sliding = false
+          this.$element.trigger('slid')
+        }
+
+        isCycling && this.cycle()
+
+        return this
+      }
+
+    }
+
+
+   /* CAROUSEL PLUGIN DEFINITION
+    * ========================== */
+
+    $.fn.carousel = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('carousel')
+          , options = $.extend({}, $.fn.carousel.defaults, typeof option == 'object' && option)
+          , action = typeof option == 'string' ? option : options.slide
+        if (!data) $this.data('carousel', (data = new Carousel(this, options)))
+        if (typeof option == 'number') data.to(option)
+        else if (action) data[action]()
+        else if (options.interval) data.cycle()
+      })
+    }
+
+    $.fn.carousel.defaults = {
+      interval: 5000
+    , pause: 'hover'
+    }
+
+    $.fn.carousel.Constructor = Carousel
+
+
+   /* CAROUSEL DATA-API
+    * ================= */
+
+    $(document).on('click.carousel.data-api', '[data-slide]', function (e) {
+      var $this = $(this), href
+        , $target = $($this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
+        , options = $.extend({}, $target.data(), $this.data())
+      $target.carousel(options)
+      e.preventDefault()
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-carousel", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* =============================================================
+   * bootstrap-collapse.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#collapse
+   * =============================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ============================================================ */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* COLLAPSE PUBLIC CLASS DEFINITION
+    * ================================ */
+
+    var Collapse = function (element, options) {
+      this.$element = $(element)
+      this.options = $.extend({}, $.fn.collapse.defaults, options)
+
+      if (this.options.parent) {
+        this.$parent = $(this.options.parent)
+      }
+
+      this.options.toggle && this.toggle()
+    }
+
+    Collapse.prototype = {
+
+      constructor: Collapse
+
+    , dimension: function () {
+        var hasWidth = this.$element.hasClass('width')
+        return hasWidth ? 'width' : 'height'
+      }
+
+    , show: function () {
+        var dimension
+          , scroll
+          , actives
+          , hasData
+
+        if (this.transitioning) return
+
+        dimension = this.dimension()
+        scroll = $.camelCase(['scroll', dimension].join('-'))
+        actives = this.$parent && this.$parent.find('> .accordion-group > .in')
+
+        if (actives && actives.length) {
+          hasData = actives.data('collapse')
+          if (hasData && hasData.transitioning) return
+          actives.collapse('hide')
+          hasData || actives.data('collapse', null)
+        }
+
+        this.$element[dimension](0)
+        this.transition('addClass', $.Event('show'), 'shown')
+        $.support.transition && this.$element[dimension](this.$element[0][scroll])
+      }
+
+    , hide: function () {
+        var dimension
+        if (this.transitioning) return
+        dimension = this.dimension()
+        this.reset(this.$element[dimension]())
+        this.transition('removeClass', $.Event('hide'), 'hidden')
+        this.$element[dimension](0)
+      }
+
+    , reset: function (size) {
+        var dimension = this.dimension()
+
+        this.$element
+          .removeClass('collapse')
+          [dimension](size || 'auto')
+          [0].offsetWidth
+
+        this.$element[size !== null ? 'addClass' : 'removeClass']('collapse')
+
+        return this
+      }
+
+    , transition: function (method, startEvent, completeEvent) {
+        var that = this
+          , complete = function () {
+              if (startEvent == "show") that.reset()
+              that.transitioning = 0
+              that.$element.trigger(completeEvent)
+            }
+
+        this.$element.trigger(startEvent)
+
+        if (false) return
+
+        this.transitioning = 1
+
+        this.$element[method]('in')
+
+        $.support.transition && this.$element.hasClass('collapse') ?
+          this.$element.one($.support.transition.end, complete) :
+          complete()
+      }
+
+    , toggle: function () {
+        this[this.$element.hasClass('in') ? 'hide' : 'show']()
+      }
+
+    }
+
+
+   /* COLLAPSIBLE PLUGIN DEFINITION
+    * ============================== */
+
+    $.fn.collapse = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('collapse')
+          , options = typeof option == 'object' && option
+        if (!data) $this.data('collapse', (data = new Collapse(this, options)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.collapse.defaults = {
+      toggle: true
+    }
+
+    $.fn.collapse.Constructor = Collapse
+
+
+   /* COLLAPSIBLE DATA-API
+    * ==================== */
+
+    $(document).on('click.collapse.data-api', '[data-toggle=collapse]', function (e) {
+      var $this = $(this), href
+        , target = $this.attr('data-target')
+          || e.preventDefault()
+          || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') //strip for ie7
+        , option = $(target).data('collapse') ? 'toggle' : $this.data()
+      $this[$(target).hasClass('in') ? 'addClass' : 'removeClass']('collapsed')
+      $(target).collapse(option)
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-collapse", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* ============================================================
+   * bootstrap-dropdown.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#dropdowns
+   * ============================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ============================================================ */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* DROPDOWN CLASS DEFINITION
+    * ========================= */
+
+    var toggle = '[data-toggle=dropdown]'
+      , Dropdown = function (element) {
+          var $el = $(element).on('click.dropdown.data-api', this.toggle)
+          $('html').on('click.dropdown.data-api', function () {
+            $el.parent().removeClass('open')
+          })
+        }
+
+    Dropdown.prototype = {
+
+      constructor: Dropdown
+
+    , toggle: function (e) {
+        var $this = $(this)
+          , $parent
+          , isActive
+
+        if ($this.is('.disabled')) return
+
+        $parent = getParent($this)
+
+        isActive = $parent.hasClass('open')
+
+        clearMenus()
+
+        if (!isActive) {
+          $parent.toggleClass('open')
+          $this.focus()
+        }
+
+        e.stop()
+      }
+
+    , keydown: function (e) {
+        var $this
+          , $items
+          , $active
+          , $parent
+          , isActive
+          , index
+
+        if (!/(38|40|27)/.test(e.keyCode)) return
+
+        $this = $(this)
+
+        e.preventDefault()
+        e.stopPropagation()
+
+        if ($this.is('.disabled, :disabled')) return
+
+        $parent = getParent($this)
+
+        isActive = $parent.hasClass('open')
+
+        if (!isActive || (isActive && e.keyCode == 27)) return $this.click()
+
+        $items = $('[role=menu] li:not(.divider) a', $parent)
+
+        if (!$items.length) return
+
+        index = $items.index($items.filter(':focus'))
+
+        if (e.keyCode == 38 && index > 0) index--                                        // up
+        if (e.keyCode == 40 && index < $items.length - 1) index++                        // down
+        if (!~index) index = 0
+
+        $items
+          .eq(index)
+          .focus()
+      }
+
+    }
+
+    function clearMenus() {
+      $(toggle).each(function () {
+        getParent($(this)).removeClass('open')
+      })
+    }
+
+    function getParent($this) {
+      var selector = $this.attr('data-target')
+        , $parent
+
+      if (!selector) {
+        selector = $this.attr('href')
+        selector = selector && /#/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
+      }
+
+      $parent = $(selector)
+      $parent.length || ($parent = $this.parent())
+
+      return $parent
+    }
+
+
+    /* DROPDOWN PLUGIN DEFINITION
+     * ========================== */
+
+    $.fn.dropdown = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('dropdown')
+        if (!data) $this.data('dropdown', (data = new Dropdown(this)))
+        if (typeof option == 'string') data[option].call($this)
+      })
+    }
+
+    $.fn.dropdown.Constructor = Dropdown
+
+
+    /* APPLY TO STANDARD DROPDOWN ELEMENTS
+     * =================================== */
+
+    $(document)
+      .on('click.dropdown.data-api touchstart.dropdown.data-api', clearMenus)
+      .on('click.dropdown touchstart.dropdown.data-api', '.dropdown form', function (e) { e.stopPropagation() })
+      .on('click.dropdown.data-api touchstart.dropdown.data-api'  , toggle, Dropdown.prototype.toggle)
+      .on('keydown.dropdown.data-api touchstart.dropdown.data-api', toggle + ', [role=menu]' , Dropdown.prototype.keydown)
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-dropdown", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* =========================================================
+   * bootstrap-modal.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#modals
+   * =========================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ========================================================= */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* MODAL CLASS DEFINITION
+    * ====================== */
+
+    var Modal = function (element, options) {
+      this.options = options
+      this.$element = $(element)
+        .delegate('[data-dismiss="modal"]', 'click.dismiss.modal', $.proxy(this.hide, this))
+      this.options.remote && this.$element.find('.modal-body').load(this.options.remote)
+    }
+
+    Modal.prototype = {
+
+        constructor: Modal
+
+      , toggle: function () {
+          return this[!this.isShown ? 'show' : 'hide']()
+        }
+
+      , show: function () {
+          var that = this
+            , e = $.Event('show')
+
+          this.$element.trigger(e)
+
+          if (this.isShown || false) return
+
+          this.isShown = true
+
+          this.escape()
+
+          this.backdrop(function () {
+            var transition = $.support.transition && that.$element.hasClass('fade')
+
+            if (!that.$element.parent().length) {
+              that.$element.appendTo(document.body) //don't move modals dom position
+            }
+
+            that.$element.show('block')
+
+            if (transition) {
+              that.$element[0].offsetWidth // force reflow
+            }
+
+            that.$element
+              .addClass('in')
+              .attr('aria-hidden', false)
+
+            that.enforceFocus()
+
+            transition ?
+              that.$element.one($.support.transition.end, function () { that.$element.focus().trigger('shown') }) :
+              that.$element.focus().trigger('shown')
+
+          })
+        }
+
+      , hide: function (e) {
+          e && e.preventDefault()
+
+          var that = this
+
+          e = $.Event('hide')
+
+          this.$element.trigger(e)
+
+          if (!this.isShown || false) return
+
+          this.isShown = false
+
+          this.escape()
+
+          $(document).off('focusin.modal')
+
+          this.$element
+            .removeClass('in')
+            .attr('aria-hidden', true)
+
+          $.support.transition && this.$element.hasClass('fade') ?
+            this.hideWithTransition() :
+            this.hideModal()
+        }
+
+      , enforceFocus: function () {
+          var that = this
+          $(document).on('focusin.modal', function (e) {
+            if (that.$element[0] !== e.target && !that.$element.has(e.target).length) {
+              that.$element.focus()
+            }
+          })
+        }
+
+      , escape: function () {
+          var that = this
+          if (this.isShown && this.options.keyboard) {
+            this.$element.on('keyup.dismiss.modal', function ( e ) {
+              e.which == 27 && that.hide()
+            })
+          } else if (!this.isShown) {
+            this.$element.off('keyup.dismiss.modal')
+          }
+        }
+
+      , hideWithTransition: function () {
+          var that = this
+            , timeout = setTimeout(function () {
+                that.$element.off($.support.transition.end)
+                that.hideModal()
+              }, 500)
+
+          this.$element.one($.support.transition.end, function () {
+            clearTimeout(timeout)
+            that.hideModal()
+          })
+        }
+
+      , hideModal: function (that) {
+          this.$element
+            .hide()
+            .trigger('hidden')
+
+          this.backdrop()
+        }
+
+      , removeBackdrop: function () {
+          this.$backdrop.remove()
+          this.$backdrop = null
+        }
+
+      , backdrop: function (callback) {
+          var that = this
+            , animate = this.$element.hasClass('fade') ? 'fade' : ''
+
+          if (this.isShown && this.options.backdrop) {
+            var doAnimate = $.support.transition && animate
+
+            this.$backdrop = $('<div class="modal-backdrop ' + animate + '" />')
+              .appendTo(document.body)
+
+            this.$backdrop.click(
+              this.options.backdrop == 'static' ?
+                $.proxy(this.$element[0].focus, this.$element[0])
+              : $.proxy(this.hide, this)
+            )
+
+            if (doAnimate) this.$backdrop[0].offsetWidth // force reflow
+
+            this.$backdrop.addClass('in')
+
+            doAnimate ?
+              this.$backdrop.one($.support.transition.end, callback) :
+              callback()
+
+          } else if (!this.isShown && this.$backdrop) {
+            this.$backdrop.removeClass('in')
+
+            $.support.transition && this.$element.hasClass('fade')?
+              this.$backdrop.one($.support.transition.end, $.proxy(this.removeBackdrop, this)) :
+              this.removeBackdrop()
+
+          } else if (callback) {
+            callback()
+          }
+        }
+    }
+
+
+   /* MODAL PLUGIN DEFINITION
+    * ======================= */
+
+    $.fn.modal = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('modal')
+          , options = $.extend({}, $.fn.modal.defaults, $this.data(), typeof option == 'object' && option)
+        if (!data) $this.data('modal', (data = new Modal(this, options)))
+        if (typeof option == 'string') data[option]()
+        else if (options.show) data.show()
+      })
+    }
+
+    $.fn.modal.defaults = {
+        backdrop: true
+      , keyboard: true
+      , show: true
+    }
+
+    $.fn.modal.Constructor = Modal
+
+
+   /* MODAL DATA-API
+    * ============== */
+
+    $(document).on('click.modal.data-api', '[data-toggle="modal"]', function (e) {
+      var $this = $(this)
+        , href = $this.attr('href')
+        , $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) //strip for ie7
+        , option = $target.data('modal') ? 'toggle' : $.extend({ remote:!/#/.test(href) && href }, $target.data(), $this.data())
+
+      e.preventDefault()
+
+      $target
+        .modal(option)
+        .one('hide', function () {
+          $this.focus()
+        })
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-modal", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* ===========================================================
+   * bootstrap-tooltip.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#tooltips
+   * Inspired by the original jQuery.tipsy by Jason Frame
+   * ===========================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ========================================================== */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* TOOLTIP PUBLIC CLASS DEFINITION
+    * =============================== */
+
+    var Tooltip = function (element, options) {
+      this.init('tooltip', element, options)
+    }
+
+    Tooltip.prototype = {
+
+      constructor: Tooltip
+
+    , init: function (type, element, options) {
+        var eventIn
+          , eventOut
+
+        this.type = type
+        this.$element = $(element)
+        this.options = this.getOptions(options)
+        this.enabled = true
+
+        if (this.options.trigger == 'click') {
+          this.$element.on('click.' + this.type, this.options.selector, $.proxy(this.toggle, this))
+        } else if (this.options.trigger != 'manual') {
+          eventIn = this.options.trigger == 'hover' ? 'mouseenter' : 'focus'
+          eventOut = this.options.trigger == 'hover' ? 'mouseleave' : 'blur'
+          this.$element.on(eventIn + '.' + this.type, this.options.selector, $.proxy(this.enter, this))
+          this.$element.on(eventOut + '.' + this.type, this.options.selector, $.proxy(this.leave, this))
+        }
+
+        this.options.selector ?
+          (this._options = $.extend({}, this.options, { trigger: 'manual', selector: '' })) :
+          this.fixTitle()
+      }
+
+    , getOptions: function (options) {
+        options = $.extend({}, $.fn[this.type].defaults, options, this.$element.data())
+
+        if (options.delay && typeof options.delay == 'number') {
+          options.delay = {
+            show: options.delay
+          , hide: options.delay
+          }
+        }
+
+        return options
+      }
+
+    , enter: function (e) {
+        var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
+
+        if (!self.options.delay || !self.options.delay.show) return self.show()
+
+        clearTimeout(this.timeout)
+        self.hoverState = 'in'
+        this.timeout = setTimeout(function() {
+          if (self.hoverState == 'in') self.show()
+        }, self.options.delay.show)
+      }
+
+    , leave: function (e) {
+        var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
+
+        if (this.timeout) clearTimeout(this.timeout)
+        if (!self.options.delay || !self.options.delay.hide) return self.hide()
+
+        self.hoverState = 'out'
+        this.timeout = setTimeout(function() {
+          if (self.hoverState == 'out') self.hide()
+        }, self.options.delay.hide)
+      }
+
+    , show: function () {
+        var $tip
+          , inside
+          , pos
+          , actualWidth
+          , actualHeight
+          , placement
+          , tp
+
+        if (this.hasContent() && this.enabled) {
+          $tip = this.tip()
+          this.setContent()
+
+          if (this.options.animation) {
+            $tip.addClass('fade')
+          }
+
+          placement = typeof this.options.placement == 'function' ?
+            this.options.placement.call(this, $tip[0], this.$element[0]) :
+            this.options.placement
+
+          inside = /in/.test(placement)
+
+          $tip
+            .detach()
+            .css({ top: 0, left: 0, display: 'block' })
+            .insertAfter(this.$element)
+
+          pos = this.getPosition(inside)
+
+          actualWidth = $tip[0].offsetWidth
+          actualHeight = $tip[0].offsetHeight
+
+          switch (inside ? placement.split(' ')[1] : placement) {
+            case 'bottom':
+              tp = {top: pos.top + pos.height, left: pos.left + pos.width / 2 - actualWidth / 2}
+              break
+            case 'top':
+              tp = {top: pos.top - actualHeight, left: pos.left + pos.width / 2 - actualWidth / 2}
+              break
+            case 'left':
+              tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left - actualWidth}
+              break
+            case 'right':
+              tp = {top: pos.top + pos.height / 2 - actualHeight / 2, left: pos.left + pos.width}
+              break
+          }
+
+          $tip
+            .offset(tp)
+            .addClass(placement)
+            .addClass('in')
+        }
+      }
+
+    , setContent: function () {
+        var $tip = this.tip()
+          , title = this.getTitle()
+
+        $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
+        $tip.removeClass('fade in top bottom left right')
+      }
+
+    , hide: function () {
+        var that = this
+          , $tip = this.tip()
+
+        $tip.removeClass('in')
+
+        function removeWithAnimation() {
+          var timeout = setTimeout(function () {
+            $tip.off($.support.transition.end).detach()
+          }, 500)
+
+          $tip.one($.support.transition.end, function () {
+            clearTimeout(timeout)
+            $tip.detach()
+          })
+        }
+
+        $.support.transition && this.$tip.hasClass('fade') ?
+          removeWithAnimation() :
+          $tip.detach()
+
+        return this
+      }
+
+    , fixTitle: function () {
+        var $e = this.$element
+        if ($e.attr('title') || typeof($e.attr('data-original-title')) != 'string') {
+          $e.attr('data-original-title', $e.attr('title') || '').removeAttr('title')
+        }
+      }
+
+    , hasContent: function () {
+        return this.getTitle()
+      }
+
+    , getPosition: function (inside) {
+        return $.extend({}, (inside ? {top: 0, left: 0} : this.$element.offset()), {
+          width: this.$element[0].offsetWidth
+        , height: this.$element[0].offsetHeight
+        })
+      }
+
+    , getTitle: function () {
+        var title
+          , $e = this.$element
+          , o = this.options
+
+        title = $e.attr('data-original-title')
+          || (typeof o.title == 'function' ? o.title.call($e[0]) :  o.title)
+
+        return title
+      }
+
+    , tip: function () {
+        return this.$tip = this.$tip || $(this.options.template)
+      }
+
+    , validate: function () {
+        if (!this.$element[0].parentNode) {
+          this.hide()
+          this.$element = null
+          this.options = null
+        }
+      }
+
+    , enable: function () {
+        this.enabled = true
+      }
+
+    , disable: function () {
+        this.enabled = false
+      }
+
+    , toggleEnabled: function () {
+        this.enabled = !this.enabled
+      }
+
+    , toggle: function (e) {
+        var self = $((e.currentTarget || e.target))[this.type](this._options).data(this.type)
+        self[self.tip().hasClass('in') ? 'hide' : 'show']()
+      }
+
+    , destroy: function () {
+        this.hide().$element.off('.' + this.type).removeData(this.type)
+      }
+
+    }
+
+
+   /* TOOLTIP PLUGIN DEFINITION
+    * ========================= */
+
+    $.fn.tooltip = function ( option ) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('tooltip')
+          , options = typeof option == 'object' && option
+        if (!data) $this.data('tooltip', (data = new Tooltip(this, options)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.tooltip.Constructor = Tooltip
+
+    $.fn.tooltip.defaults = {
+      animation: true
+    , placement: 'top'
+    , selector: false
+    , template: '<div class="tooltip"><div class="tooltip-arrow"></div><div class="tooltip-inner"></div></div>'
+    , trigger: 'hover'
+    , title: ''
+    , delay: 0
+    , html: false
+    }
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-tooltip", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* ===========================================================
+   * bootstrap-popover.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#popovers
+   * ===========================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * =========================================================== */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* POPOVER PUBLIC CLASS DEFINITION
+    * =============================== */
+
+    var Popover = function (element, options) {
+      this.init('popover', element, options)
+    }
+
+
+    /* NOTE: POPOVER EXTENDS BOOTSTRAP-TOOLTIP.js
+       ========================================== */
+
+    Popover.prototype = $.extend({}, $.fn.tooltip.Constructor.prototype, {
+
+      constructor: Popover
+
+    , setContent: function () {
+        var $tip = this.tip()
+          , title = this.getTitle()
+          , content = this.getContent()
+
+        $tip.find('.popover-title')[this.options.html ? 'html' : 'text'](title)
+        $tip.find('.popover-content > *')[this.options.html ? 'html' : 'text'](content)
+
+        $tip.removeClass('fade top bottom left right in')
+      }
+
+    , hasContent: function () {
+        return this.getTitle() || this.getContent()
+      }
+
+    , getContent: function () {
+        var content
+          , $e = this.$element
+          , o = this.options
+
+        content = $e.attr('data-content')
+          || (typeof o.content == 'function' ? o.content.call($e[0]) :  o.content)
+
+        return content
+      }
+
+    , tip: function () {
+        if (!this.$tip) {
+          this.$tip = $(this.options.template)
+        }
+        return this.$tip
+      }
+
+    , destroy: function () {
+        this.hide().$element.off('.' + this.type).removeData(this.type)
+      }
+
+    })
+
+
+   /* POPOVER PLUGIN DEFINITION
+    * ======================= */
+
+    $.fn.popover = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('popover')
+          , options = typeof option == 'object' && option
+        if (!data) $this.data('popover', (data = new Popover(this, options)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.popover.Constructor = Popover
+
+    $.fn.popover.defaults = $.extend({} , $.fn.tooltip.defaults, {
+      placement: 'right'
+    , trigger: 'click'
+    , content: ''
+    , template: '<div class="popover"><div class="arrow"></div><div class="popover-inner"><h3 class="popover-title"></h3><div class="popover-content"><p></p></div></div></div>'
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-popover", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* =============================================================
+   * bootstrap-scrollspy.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#scrollspy
+   * =============================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ============================================================== */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* SCROLLSPY CLASS DEFINITION
+    * ========================== */
+
+    function ScrollSpy(element, options) {
+      var process = $.proxy(this.process, this)
+        , $element = $(element).is('body') ? $(window) : $(element)
+        , href
+      this.options = $.extend({}, $.fn.scrollspy.defaults, options)
+      this.$scrollElement = $element.on('scroll.scroll-spy.data-api', process)
+      this.selector = (this.options.target
+        || ((href = $(element).attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '')) //strip for ie7
+        || '') + ' .nav li > a'
+      this.$body = $('body')
+      this.refresh()
+      this.process()
+    }
+
+    ScrollSpy.prototype = {
+
+        constructor: ScrollSpy
+
+      , refresh: function () {
+          var self = this
+            , $targets
+
+          this.offsets = []
+          this.targets = []
+
+          $targets = this.$body
+            .find(this.selector)
+            .map(function () {
+              var $el = $(this)
+                , href = $el.data('target') || $el.attr('href')
+                , $href = /^#\w/.test(href) && $(href)
+              return ( $href
+                && $href.length
+                && [ $href.position().top, href ] ) || null
+            })
+            .sort(function (a, b) { return a[0] - b[0] })
+            .each(function () {
+              self.offsets.push(this[0])
+              self.targets.push(this[1])
+            })
+        }
+
+      , process: function () {
+          var scrollTop = this.$scrollElement.scrollTop() + this.options.offset
+            , scrollHeight = this.$scrollElement[0].scrollHeight || this.$body[0].scrollHeight
+            , maxScroll = scrollHeight - this.$scrollElement.height()
+            , offsets = this.offsets
+            , targets = this.targets
+            , activeTarget = this.activeTarget
+            , i
+
+          if (scrollTop >= maxScroll) {
+            return activeTarget != (i = targets[targets.length-1])
+              && this.activate ( i )
+          }
+
+          for (i = offsets.length; i--;) {
+            activeTarget != targets[i]
+              && scrollTop >= offsets[i]
+              && (!offsets[i + 1] || scrollTop <= offsets[i + 1])
+              && this.activate( targets[i] )
+          }
+        }
+
+      , activate: function (target) {
+          var active
+            , selector
+
+          this.activeTarget = target
+
+          $(this.selector)
+            .parent('.active')
+            .removeClass('active')
+
+          selector = this.selector
+            + '[data-target="' + target + '"],'
+            + this.selector + '[href="' + target + '"]'
+
+          active = $(selector)
+            .parent('li')
+            .addClass('active')
+
+          if (active.parent('.dropdown-menu').length)  {
+            active = active.closest('li.dropdown').addClass('active')
+          }
+
+          active.trigger('activate')
+        }
+
+    }
+
+
+   /* SCROLLSPY PLUGIN DEFINITION
+    * =========================== */
+
+    $.fn.scrollspy = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('scrollspy')
+          , options = typeof option == 'object' && option
+        if (!data) $this.data('scrollspy', (data = new ScrollSpy(this, options)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.scrollspy.Constructor = ScrollSpy
+
+    $.fn.scrollspy.defaults = {
+      offset: 10
+    }
+
+
+   /* SCROLLSPY DATA-API
+    * ================== */
+
+    $(window).on('load', function () {
+      $('[data-spy="scroll"]').each(function () {
+        var $spy = $(this)
+        $spy.scrollspy($spy.data())
+      })
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-scrollspy", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* ========================================================
+   * bootstrap-tab.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#tabs
+   * ========================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ======================================================== */
+
+
+  !function ($) {
+
+    "use strict"; // jshint ;_;
+
+
+   /* TAB CLASS DEFINITION
+    * ==================== */
+
+    var Tab = function (element) {
+      this.element = $(element)
+    }
+
+    Tab.prototype = {
+
+      constructor: Tab
+
+    , show: function () {
+        var $this = this.element
+          , $ul = $this.closest('ul:not(.dropdown-menu)')
+          , selector = $this.attr('data-target')
+          , previous
+          , $target
+          , e
+
+        if (!selector) {
+          selector = $this.attr('href')
+          selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') //strip for ie7
+        }
+
+        if ( $this.parent('li').hasClass('active') ) return
+
+        previous = $ul.find('.active:last a')[0]
+
+        e = $.Event('show', {
+          relatedTarget: previous
+        })
+
+        $this.trigger(e)
+
+        if (false) return
+
+        $target = $(selector)
+
+        this.activate($this.parent('li'), $ul)
+        this.activate($target, $target.parent(), function () {
+          $this.trigger({
+            type: 'shown'
+          , relatedTarget: previous
+          })
+        })
+      }
+
+    , activate: function ( element, container, callback) {
+        var $active = container.find('> .active')
+          , transition = callback
+              && $.support.transition
+              && $active.hasClass('fade')
+
+        function next() {
+          $active
+            .removeClass('active')
+            .find('> .dropdown-menu > .active')
+            .removeClass('active')
+
+          element.addClass('active')
+
+          if (transition) {
+            element[0].offsetWidth // reflow for transition
+            element.addClass('in')
+          } else {
+            element.removeClass('fade')
+          }
+
+          if ( element.parent('.dropdown-menu') ) {
+            element.closest('li.dropdown').addClass('active')
+          }
+
+          callback && callback()
+        }
+
+        transition ?
+          $active.one($.support.transition.end, next) :
+          next()
+
+        $active.removeClass('in')
+      }
+    }
+
+
+   /* TAB PLUGIN DEFINITION
+    * ===================== */
+
+    $.fn.tab = function ( option ) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('tab')
+        if (!data) $this.data('tab', (data = new Tab(this)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.tab.Constructor = Tab
+
+
+   /* TAB DATA-API
+    * ============ */
+
+    $(document).on('click.tab.data-api', '[data-toggle="tab"], [data-toggle="pill"]', function (e) {
+      e.preventDefault()
+      $(this).tab('show')
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-tab", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /* =============================================================
+   * bootstrap-typeahead.js v2.2.1
+   * http://twitter.github.com/bootstrap/javascript.html#typeahead
+   * =============================================================
+   * Copyright 2012 Twitter, Inc.
+   *
+   * Licensed under the Apache License, Version 2.0 (the "License");
+   * you may not use this file except in compliance with the License.
+   * You may obtain a copy of the License at
+   *
+   * http://www.apache.org/licenses/LICENSE-2.0
+   *
+   * Unless required by applicable law or agreed to in writing, software
+   * distributed under the License is distributed on an "AS IS" BASIS,
+   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   * See the License for the specific language governing permissions and
+   * limitations under the License.
+   * ============================================================ */
+
+
+  !function($){
+
+    "use strict"; // jshint ;_;
+
+
+   /* TYPEAHEAD PUBLIC CLASS DEFINITION
+    * ================================= */
+
+    var Typeahead = function (element, options) {
+      this.$element = $(element)
+      this.options = $.extend({}, $.fn.typeahead.defaults, options)
+      this.matcher = this.options.matcher || this.matcher
+      this.sorter = this.options.sorter || this.sorter
+      this.highlighter = this.options.highlighter || this.highlighter
+      this.updater = this.options.updater || this.updater
+      this.$menu = $(this.options.menu).appendTo('body')
+      this.source = this.options.source
+      this.shown = false
+      this.listen()
+    }
+
+    Typeahead.prototype = {
+
+      constructor: Typeahead
+
+    , select: function () {
+        var val = this.$menu.find('.active').attr('data-value')
+        this.$element
+          .val(this.updater(val))
+          .change()
+        return this.hide()
+      }
+
+    , updater: function (item) {
+        return item
+      }
+
+    , show: function () {
+        var pos = $.extend({}, this.$element.offset(), {
+          height: this.$element[0].offsetHeight
+        })
+
+        this.$menu.css({
+          top: pos.top + pos.height
+        , left: pos.left
+        })
+
+        this.$menu.show('block')
+        this.shown = true
+        return this
+      }
+
+    , hide: function () {
+        this.$menu.hide()
+        this.shown = false
+        return this
+      }
+
+    , lookup: function (event) {
+        var items
+
+        this.query = this.$element.val()
+
+        if (!this.query || this.query.length < this.options.minLength) {
+          return this.shown ? this.hide() : this
+        }
+
+        items = (typeof this.source == "function") ? this.source(this.query, $.proxy(this.process, this)) : this.source
+
+        return items ? this.process(items) : this
+      }
+
+    , process: function (items) {
+        var that = this
+
+        items = $.grep(items, function (item) {
+          return that.matcher(item)
+        })
+
+        items = this.sorter(items)
+
+        if (!items.length) {
+          return this.shown ? this.hide() : this
+        }
+
+        return this.render(items.slice(0, this.options.items)).show()
+      }
+
+    , matcher: function (item) {
+        return ~item.toLowerCase().indexOf(this.query.toLowerCase())
+      }
+
+    , sorter: function (items) {
+        var beginswith = []
+          , caseSensitive = []
+          , caseInsensitive = []
+          , item
+
+        while (item = items.shift()) {
+          if (!item.toLowerCase().indexOf(this.query.toLowerCase())) beginswith.push(item)
+          else if (~item.indexOf(this.query)) caseSensitive.push(item)
+          else caseInsensitive.push(item)
+        }
+
+        return beginswith.concat(caseSensitive, caseInsensitive)
+      }
+
+    , highlighter: function (item) {
+        var query = this.query.replace(/[\-\[\]{}()*+?.,\\\^$|#\s]/g, '\\$&')
+        return item.replace(new RegExp('(' + query + ')', 'ig'), function ($1, match) {
+          return '<strong>' + match + '</strong>'
+        })
+      }
+
+    , render: function (items) {
+        var that = this
+
+        items = $(items).map(function (item, i) {
+          i = $(that.options.item).attr('data-value', item)
+          i.find('a').html(that.highlighter(item))
+          return i[0]
+        })
+
+        $(items).first().addClass('active')
+        this.$menu.empty().append(items)
+        return this
+      }
+
+    , next: function (event) {
+        var active = this.$menu.find('.active').removeClass('active')
+          , next = active.next()
+
+        if (!next.length) {
+          next = $(this.$menu.find('li')[0])
+        }
+
+        next.addClass('active')
+      }
+
+    , prev: function (event) {
+        var active = this.$menu.find('.active').removeClass('active')
+          , prev = active.prev()
+
+        if (!prev.length) {
+          prev = this.$menu.find('li').last()
+        }
+
+        prev.addClass('active')
+      }
+
+    , listen: function () {
+        this.$element
+          .on('blur',     $.proxy(this.blur, this))
+          .on('keypress', $.proxy(this.keypress, this))
+          .on('keyup',    $.proxy(this.keyup, this))
+
+        if (this.eventSupported('keydown')) {
+          this.$element.on('keydown', $.proxy(this.keydown, this))
+        }
+
+        this.$menu
+          .on('click', $.proxy(this.click, this))
+          .on('mouseenter', 'li', $.proxy(this.mouseenter, this))
+      }
+
+    , eventSupported: function(eventName) {
+        var isSupported = eventName in this.$element
+        if (!isSupported) {
+          this.$element.setAttribute(eventName, 'return;')
+          isSupported = typeof this.$element[eventName] === 'function'
+        }
+        return isSupported
+      }
+
+    , move: function (e) {
+        if (!this.shown) return
+
+        switch(e.keyCode) {
+          case 9: // tab
+          case 13: // enter
+          case 27: // escape
+            e.preventDefault()
+            break
+
+          case 38: // up arrow
+            e.preventDefault()
+            this.prev()
+            break
+
+          case 40: // down arrow
+            e.preventDefault()
+            this.next()
+            break
+        }
+
+        e.stopPropagation()
+      }
+
+    , keydown: function (e) {
+        this.suppressKeyPressRepeat = !~$.inArray(e.keyCode, [40,38,9,13,27])
+        this.move(e)
+      }
+
+    , keypress: function (e) {
+        if (this.suppressKeyPressRepeat) return
+        this.move(e)
+      }
+
+    , keyup: function (e) {
+        switch(e.keyCode) {
+          case 40: // down arrow
+          case 38: // up arrow
+          case 16: // shift
+          case 17: // ctrl
+          case 18: // alt
+            break
+
+          case 9: // tab
+          case 13: // enter
+            if (!this.shown) return
+            this.select()
+            break
+
+          case 27: // escape
+            if (!this.shown) return
+            this.hide()
+            break
+
+          default:
+            this.lookup()
+        }
+
+        e.stopPropagation()
+        e.preventDefault()
+    }
+
+    , blur: function (e) {
+        var that = this
+        setTimeout(function () { that.hide() }, 150)
+      }
+
+    , click: function (e) {
+        e.stopPropagation()
+        e.preventDefault()
+        this.select()
+      }
+
+    , mouseenter: function (e) {
+        this.$menu.find('.active').removeClass('active')
+        $((e.currentTarget || e.target)).addClass('active')
+      }
+
+    }
+
+
+    /* TYPEAHEAD PLUGIN DEFINITION
+     * =========================== */
+
+    $.fn.typeahead = function (option) {
+      return this.each(function () {
+        var $this = $(this)
+          , data = $this.data('typeahead')
+          , options = typeof option == 'object' && option
+        if (!data) $this.data('typeahead', (data = new Typeahead(this, options)))
+        if (typeof option == 'string') data[option]()
+      })
+    }
+
+    $.fn.typeahead.defaults = {
+      source: []
+    , items: 8
+    , menu: '<ul class="typeahead dropdown-menu"></ul>'
+    , item: '<li><a href="#"></a></li>'
+    , minLength: 1
+    }
+
+    $.fn.typeahead.Constructor = Typeahead
+
+
+   /*   TYPEAHEAD DATA-API
+    * ================== */
+
+    $('[data-provide="typeahead"]').on('focus.typeahead.data-api', function (e) {
+      var $this = $(this)
+      if ($this.data('typeahead')) return
+      e.preventDefault()
+      $this.typeahead($this.data())
+    })
+  }(require('ender-bootstrap-base-faker'))
+  provide("ender-bootstrap-typeahead", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
   provide("ender-bootstrap", module.exports);
+  $.ender(module.exports);
+}());
+
+(function () {
+
+  var module = { exports: {} }, exports = module.exports;
+
+  /*!
+    * Qwery - A Blazing Fast query selector engine
+    * https://github.com/ded/qwery
+    * copyright Dustin Diaz & Jacob Thornton 2011
+    * MIT License
+    */
+
+  !function () {
+    var q, pseudos, i, l, p, r, nodes, m, nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/
+    if (typeof module != 'undefined' && typeof 'require' != 'undefined')
+      q = require('qwery')
+    else if (typeof qwery != 'undefined')
+      q = qwery
+    else
+      return
+
+    pseudos = q.pseudos
+
+    function children(node, ofType) {
+      var r = []
+      nodes = node.childNodes
+
+      for (i = 0, l = nodes.length; i < l; i++) {
+        if (nodes[i].nodeType == 1 && (!ofType || nodes[i].nodeName == ofType)) r.push(nodes[i])
+      }
+      return r
+    }
+
+    function checkNthExpr(el, nodes, a, b) {
+      if (!a) return (nodes[b-1] == el)
+      for (i = b, l = nodes.length; ((a > 0) ? (i <= l) : (i >= 1)); i += a) if (el == nodes[i-1]) return true
+      return false
+    }
+
+    function checkNth(el, nodes, val) {
+      if (isFinite(val)) return nodes[val - 1] == el
+      else if (val == 'odd') return checkNthExpr(el, nodes, 2, 1)
+      else if (val == 'even') return checkNthExpr(el, nodes, 2, 0)
+      else if (m = nthPattern.exec(val))
+        return checkNthExpr(el, nodes,
+                            (m[2] ? parseInt(m[1], 10) : parseInt(m[1] + '1', 10)),  // Check case where coefficient is omitted
+                            (m[3] ? parseInt(m[3].replace(/\s*/, ''), 10) : 0)) // Check case where constant is omitted
+
+      return false
+    }
+
+    function text(el, s) {
+      if (el.nodeType === 3 || el.nodeType === 4) return el.nodeValue;
+      if (el.nodeType !== 1 && el.nodeType !== 9) return '';
+      for (s = '', el = el.firstChild; el; el = el.nextSibling) {
+        if (el.nodeType !== 8) s += el.textContent || el.innerText || text(el)
+      }
+      return s
+    }
+
+    // *was* going to be in CSS3, didn't quite make it
+    pseudos.contains = function(el, val) { return text(el).indexOf(val) != -1 }
+
+    pseudos.not = function(el, val) { return !q.is(el, val) }
+
+    pseudos['nth-child'] = function (el, val) {
+      if (!val || !(p = el.parentNode)) return false
+      return checkNth(el, children(p), val)
+    }
+
+    pseudos['nth-last-child'] = function (el, val) {
+      if (!val || !(p = el.parentNode)) return false
+      return checkNth(el, children(p).reverse(), val)
+    }
+
+    pseudos['nth-of-type'] = function (el, val) {
+      if (!val || !(p = el.parentNode)) return false
+      return checkNth(el, children(p, el.nodeName), val)
+    }
+
+    pseudos['nth-last-of-type'] = function (el, val) {
+      if (!val || !(p = el.parentNode)) return false
+      return checkNth(el, children(p, el.nodeName).reverse(), val)
+    }
+
+    pseudos['first-child'] = function (el) { return pseudos['nth-child'](el, 1) }
+    pseudos['last-child'] = function (el) { return pseudos['nth-last-child'](el, 1) }
+    pseudos['first-of-type'] = function (el) { return pseudos['nth-of-type'](el, 1) }
+    pseudos['last-of-type'] = function (el) { return pseudos['nth-last-of-type'](el, 1) }
+
+    pseudos['only-child'] = function (el) {
+      return (p = el.parentNode) && (nodes = children(p)) && (nodes.length == 1) && (el == nodes[0])
+    };
+
+    pseudos['only-of-type'] = function (el) {
+      return (p = el.parentNode) && (nodes = children(p, el.nodeName)) && (nodes.length == 1) && (el == nodes[0])
+    }
+
+    pseudos.target = function (el) {
+      return (el.getAttribute('id') == location.hash.substr(1))
+    }
+
+    pseudos.checked = function (el) { return el.checked }
+
+    pseudos.enabled = function (el) { return !el.disabled }
+
+    pseudos.disabled = function (el) { return el.disabled }
+
+    pseudos.empty = function (el) { return !el.childNodes.length }
+
+  }();
+
+  provide("qwery-pseudos", module.exports);
   $.ender(module.exports);
 }());
