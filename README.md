@@ -1,10 +1,11 @@
 # Ender Bootstrap &mdash; Twitter's Bootstrap for Ender
 
-This is a port of **v2.0** of [Twitter's
+This is a port of **v2** of [Twitter's
 Bootstrap](http://twitter.github.com/bootstrap) for Ender, using only
 [Qwery](https://github.com/ded/qwery),
 [Bonzo](https://github.com/ded/bonzo),
 [Bean](https://github.com/fat/bean).
+[Traversty](https://github.com/rvagg/traversty),
 [domReady](https://github.com/ded/domready) and
 [Bowser](https://github.com/ded/bowser).
 
@@ -20,7 +21,7 @@ minified & gzipped, of a jQuery-based Bootstrap install).
 
 ## Current status
 
-All good @2.0.4! A couple of minor features are not available, most notably
+All good @2.2.1! A couple of very minor features are not available, most notably
 he ability to `preventDefault()` on custom emitted events as Bean does
 not support the full `$.Event` jQuery API. However this is not a commonly
 used or well documented feature of Bootstrap.
@@ -29,6 +30,7 @@ used or well documented feature of Bootstrap.
 
 NPM contains a package for each of the Bootstrap plugins:
 
+ * ender-bootstrap-affix
  * ender-bootstrap-alert
  * ender-bootstrap-button
  * ender-bootstrap-carousel
@@ -63,11 +65,11 @@ specify the required dependencies on the command line when running
 *1.0-wip* development branch of the Ender CLI. So install like this:
 
 ```
- $ ender build qwery qwery-pseudos bonzo bean domready bowser ender-bootstrap-base ender-bootstrap-transition ender-bootstrap-alert
+ $ ender build qwery qwery-pseudos bonzo bean traversty domready bowser ender-bootstrap-base ender-bootstrap-transition ender-bootstrap-alert
 
  # or, for the whole hog
 
- $ ender build qwery qwery-pseudos bonzo bean domready bowser ender-bootstrap
+ $ ender build qwery qwery-pseudos bonzo bean traversty domready bowser ender-bootstrap
 ```
 
 Also note that Qwery is an optional dependency so you can switch it
@@ -87,7 +89,7 @@ pre-built version which I'll keep updated:
  * http://rvagg.github.com/ender-bootstrap/ender-bootstrap.min.js
 
 This build has all of the Bootstrap plugins installed plus the Ender
-dependencies: Qwery, Bonzo, Bean, domReady and Bowser so you get lots of
+dependencies: Qwery, Bonzo, Bean, Traversty, domReady and Bowser so you get lots of
 goodness.
 
 ### Demo
@@ -141,20 +143,10 @@ functions that do leak.
    some events that Bootstrap fires that won't see the light of day. If
    his is important to anyone then file a but report and it can be
    fixed up.
- * `$().height()` and `$().width()` (Bonzo) will attempt to use
-   `getComputedStyle()` where it exists (modern browsers) *first* before
-   looking at the style property. Bonzo does the reverse to jQuery and
-   this matters mainly for the collapsable plugin and shouldn't usually
-   matter for most uses because they normally converge to the same value
-   anyway.
- * `$().prev()` is installed as an alias for `$().previous()` (Bonzo).
  * `$().data()` (Bonzo) is modified so it can handle JSON arrays, it
    simply looks at the first character, if it's a `'['` then it'll try
    `JSON.parse()` (modern browsers) or a naive split. This is required
    for *typeahead* where you specify the list in a *data-* property.
- * `$().position()` from jQuery (http://api.jquery.com/position/) is
-   installed, with a few minor modifications. `$().offsetParent()` comes
-   along for the ride too (http://api.jquery.com/offsetParent/).
  * `$().index(el)` is implemented if it doesn't exist, it'll simply return
    the index of the given element in the current list, or -1 if it's not
    there. No-arg version is not supported.
