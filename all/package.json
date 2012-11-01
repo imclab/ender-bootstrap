@@ -13,19 +13,19 @@
     "Rod Vagg <@rvagg>"
   ],
   "dependencies": {
-    "ender-bootstrap-base": "2.1.1",
-    "ender-bootstrap-transition": "2.1.1",
-    "ender-bootstrap-alert": "2.1.1",
-    "ender-bootstrap-button": "2.1.1",
-    "ender-bootstrap-carousel": "2.1.1",
-    "ender-bootstrap-collapse": "2.1.1",
-    "ender-bootstrap-dropdown": "2.1.1",
-    "ender-bootstrap-modal": "2.1.1",
-    "ender-bootstrap-popover": "2.1.1",
-    "ender-bootstrap-scrollspy": "2.1.1",
-    "ender-bootstrap-tab": "2.1.1",
-    "ender-bootstrap-tooltip": "2.1.1",
-    "ender-bootstrap-typeahead": "2.1.1"
+    "ender-bootstrap-base": "2.2.1",
+    "ender-bootstrap-transition": "2.2.1",
+    "ender-bootstrap-alert": "2.2.1",
+    "ender-bootstrap-button": "2.2.1",
+    "ender-bootstrap-carousel": "2.2.1",
+    "ender-bootstrap-collapse": "2.2.1",
+    "ender-bootstrap-dropdown": "2.2.1",
+    "ender-bootstrap-modal": "2.2.1",
+    "ender-bootstrap-popover": "2.2.1",
+    "ender-bootstrap-scrollspy": "2.2.1",
+    "ender-bootstrap-tab": "2.2.1",
+    "ender-bootstrap-tooltip": "2.2.1",
+    "ender-bootstrap-typeahead": "2.2.1"
   },
-  "version": "2.1.1"
+  "version": "2.2.1"
 }
