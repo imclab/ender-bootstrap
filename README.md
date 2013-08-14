@@ -1,7 +1,7 @@
-# Ender Bootstrap &mdash; Twitter's Bootstrap for Ender
+# Ender Bootstrap &mdash; Bootstrap for Ender
 
-This is a port of **v2** of [Twitter's
-Bootstrap](http://twitter.github.com/bootstrap) for Ender, using only
+This is a port of **v2** of
+[Bootstrap](http://github.com/twbs/bootstrap) for Ender, using only
 [Qwery](https://github.com/ded/qwery),
 [Bonzo](https://github.com/ded/bonzo),
 [Bean](https://github.com/fat/bean).
@@ -101,7 +101,7 @@ http://rvagg.github.com/ender-bootstrap/ to see it live.
 
 If you'd like to contribute (fixes, improvements, whatever) then I'd
 love to hear from you! In this repo you'll find a `build` script, simply
-run it and it'll clone the main Twitter Bootstrap repo (*master*) and
+run it and it'll clone the main Bootstrap repo (*master*) and
 then munge it to make it work with Ender and assemble the packages ready
 for NPM. The altered files end up in the *dist/* directory but it will
 also fix up the *javascript.html* demo page and associated
